@@ -626,6 +626,9 @@ const Clients: React.FC = () => {
   // Handle tasks query error gracefully
   const tasks = tasksQuery && !(tasksQuery instanceof Error) ? tasksQuery : [];
   const hasTasksError = tasksQuery instanceof Error;
+  
+  // Don't show errors for placeholder queries (expected when no real data)
+  const shouldShowTasksError = hasTasksError && workspace?.id !== "placeholder";
 
   // Task mutations
   const createCustomTask = useMutation(api.clientLoanTypes.createCustomClientTask);
