@@ -103,10 +103,10 @@ const ClientPortal: React.FC = () => {
           dueAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
           createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
           updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
-          loanFileId: 'sample-loan-file-1' as any,
           clientNote: 'I will gather these documents this week.',
           loanTypeId: 'sample-loan-type-1' as any,
-          loanTypeName: 'Residential Mortgage'
+          loanTypeName: 'Residential Mortgage',
+          loanTypeOrder: 1
         }
       ];
     }
@@ -121,7 +121,6 @@ const ClientPortal: React.FC = () => {
       dueAt: number;
       createdAt: number;
       updatedAt: number;
-      loanFileId: any;
       clientNote: string | null;
       loanTypeId: any;
       loanTypeName: string;
@@ -149,7 +148,6 @@ const ClientPortal: React.FC = () => {
           dueAt: Date.now() + (template.dueInDays * 24 * 60 * 60 * 1000),
           createdAt: Date.now() - ((taskIdCounter + 1) * 24 * 60 * 60 * 1000),
           updatedAt: Date.now() - ((taskIdCounter + 1) * 24 * 60 * 60 * 1000),
-          loanFileId: `sample-loan-file-${loanTypeIndex + 1}` as any,
           clientNote: loanTypeIndex === 0 && taskIndex === 0 ? 'Working on this task.' : null,
           loanTypeId: loanType._id,
           loanTypeName: loanType.name,
@@ -169,7 +167,6 @@ const ClientPortal: React.FC = () => {
         dueAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
         createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
         updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
-        loanFileId: 'sample-loan-file-1' as any,
         clientNote: 'I will gather these documents this week.',
         loanTypeId: 'sample-loan-type-1' as any,
         loanTypeName: 'Residential Mortgage',
@@ -178,50 +175,24 @@ const ClientPortal: React.FC = () => {
     ];
   }, [workspaceLoanTypes, workspaceTaskTemplates]);
 
-  const sampleLoanFiles = React.useMemo(() => {
+  const sampleLoanTypes = React.useMemo(() => {
     if (workspaceLoanTypes.length === 0) {
       return [{
-        _id: 'sample-loan-file-1' as any,
-        status: 'in_progress' as const,
-        currentStage: 'Document Collection',
-        createdAt: Date.now() - (7 * 24 * 60 * 60 * 1000),
-        updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
-        loanTypeId: 'sample-loan-type-1' as any,
-        loanTypeName: 'Residential Mortgage',
+        _id: 'sample-loan-type-1' as any,
+        name: 'Residential Mortgage',
+        category: 'Residential',
+        stages: ['Application', 'Document Collection', 'Underwriting', 'Approval'],
         order: 1
       }];
     }
 
-    // Create sample loan files for multiple loan types with proper ordering
+    // Create sample loan types with proper ordering
     return workspaceLoanTypes.slice(0, 3).map((loanType, index) => ({
-      _id: `sample-loan-file-${index + 1}` as any,
-      status: index === 0 ? 'in_progress' as const : 'draft' as const,
-      currentStage: index === 0 ? (loanType.stages[1] || 'Document Collection') : loanType.stages[0] || 'Application',
-      createdAt: Date.now() - ((7 - index * 2) * 24 * 60 * 60 * 1000),
-      updatedAt: Date.now() - ((1 - index) * 24 * 60 * 60 * 1000),
-      loanTypeId: loanType._id,
-      loanTypeName: loanType.name,
+      _id: loanType._id,
+      name: loanType.name,
+      category: loanType.category,
+      stages: loanType.stages,
       order: index + 1
-    }));
-  }, [workspaceLoanTypes]);
-
-  const sampleDocuments = React.useMemo(() => {
-    // Create sample documents that would be relevant to the loan type
-    const documentTypes = workspaceLoanTypes.length > 0 ? 
-      ['Income Verification', 'Credit Authorization', 'Asset Documentation'] : 
-      ['Pay Stub', 'W2 Form', 'Bank Statement'];
-
-    return documentTypes.map((type, index) => ({
-      _id: `sample-doc-${index + 1}` as any,
-      fileName: `${type.replace(' ', '_')}_${new Date().getFullYear()}.pdf`,
-      fileType: 'application/pdf',
-      fileSize: 200000 + (index * 50000), // Varying file sizes
-      status: index === 0 ? 'approved' as const : 'pending_review' as const,
-      uploadedAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
-      createdAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
-      updatedAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
-      uploadedBy: 'sample-user-1' as any,
-      workspaceId: 'sample-workspace-1' as any,
     }));
   }, [workspaceLoanTypes]);
 
@@ -269,8 +240,7 @@ const ClientPortal: React.FC = () => {
   const canSendMessages = clientPermissions?.permissions?.includes('send_messages') || isPreviewMode;
 
   // Filter data based on permissions
-  const displayLoanFiles = canViewLoanFiles ? (isPreviewMode ? sampleLoanFiles : loanFiles) : [];
-  const displayDocuments = canViewDocuments ? (isPreviewMode ? sampleDocuments : documents) : [];
+  const displayLoanTypes = canViewLoanFiles ? (isPreviewMode ? sampleLoanTypes : workspaceLoanTypes) : [];
   const displayTasks = canViewTasks ? (isPreviewMode ? sampleTasks : tasks) : [];
 
   // Permission-based access control
@@ -318,8 +288,8 @@ const ClientPortal: React.FC = () => {
     try {
       // Check if we have a loan file to associate with
       let loanFileId: any = undefined;
-      if (displayLoanFiles.length > 0) {
-        loanFileId = displayLoanFiles[0]._id;
+      if (loanFiles.length > 0) {
+        loanFileId = loanFiles[0]._id;
       }
       
       // Upload the document
@@ -383,8 +353,8 @@ const ClientPortal: React.FC = () => {
       // Get the task to find its loan file
       const task = displayTasks.find(t => t._id === taskId);
       let loanFileId: any = undefined;
-      if (task?.loanFileId) {
-        loanFileId = task.loanFileId;
+      if (task?.loanTypeId) {
+        loanFileId = task.loanTypeId;
       }
       
       // Upload the document linked to the task
@@ -459,11 +429,10 @@ const ClientPortal: React.FC = () => {
         <nav className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex space-x-8">
-              {['overview', 'loan-files', 'documents', 'tasks', 'messages'].map((tab) => {
+              {['overview', 'loan-types', 'tasks', 'messages'].map((tab) => {
                 const isActive = activeTab === tab;
                 const isDisabled = 
-                  (tab === 'loan-files' && !canViewLoanFiles) ||
-                  (tab === 'documents' && !canViewDocuments) ||
+                  (tab === 'loan-types' && !canViewLoanFiles) ||
                   (tab === 'tasks' && !canViewTasks) ||
                   (tab === 'messages' && !canSendMessages);
 
@@ -505,23 +474,28 @@ const ClientPortal: React.FC = () => {
                 </p>
                 
                 {/* Loan Type Information */}
-                {displayLoanFiles.length > 0 && (
+                {displayLoanTypes.length > 0 && (
                   <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h3 className="font-semibold text-blue-800 mb-4">Loan Applications Progress</h3>
+                    <h3 className="font-semibold text-blue-800 mb-4">Loan Applications</h3>
                     
                     {/* Multiple Loan Types with Progress */}
                     <div className="space-y-4">
-                      {displayLoanFiles.map((loanFile, index) => {
-                        const loanTypeTasks = displayTasks.filter(task => 
-                          task.loanFileId === loanFile._id || 
-                          (task as any).loanTypeId === loanFile.loanTypeId
-                        );
+                      {displayLoanTypes.map((loanType, index) => {
+                        const loanTypeTasks = displayTasks.filter(task => {
+                          // For sample tasks, check loanTypeId
+                          if ((task as any).loanTypeId) {
+                            return (task as any).loanTypeId === loanType._id;
+                          }
+                          // For real tasks, we need to find the loan file that matches this loan type
+                          // For now, we'll show all tasks in preview mode
+                          return isPreviewMode;
+                        });
                         const completedTasks = loanTypeTasks.filter(task => task.status === 'completed').length;
                         const totalTasks = loanTypeTasks.length;
                         const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
                         
                         return (
-                          <div key={loanFile._id} className="border border-blue-200 rounded-lg p-4 bg-white">
+                          <div key={loanType._id} className="border border-blue-200 rounded-lg p-4 bg-white">
                             {/* Loan Type Header */}
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center space-x-3">
@@ -533,7 +507,7 @@ const ClientPortal: React.FC = () => {
                                 </div>
                                 <div>
                                   <h4 className="font-semibold text-blue-800">
-                                    {(loanFile as any).loanTypeName || `Loan Type ${index + 1}`}
+                                    {loanType.name}
                                   </h4>
                                   <p className="text-sm text-blue-600">
                                     {index === 0 ? 'Current Priority' : 
@@ -543,11 +517,10 @@ const ClientPortal: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className={`text-xs px-2 py-1 rounded ${
-                                  loanFile.status === 'in_progress' ? 'bg-green-100 text-green-800' :
-                                  loanFile.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                                  loanType.stages.length > 0 && loanType.stages[loanType.stages.length - 1] === 'Approval' ? 'bg-green-100 text-green-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {loanFile.status.replace('_', ' ')}
+                                  {loanType.stages.length > 0 ? loanType.stages[loanType.stages.length - 1] : 'No Stages'}
                                 </span>
                               </div>
                             </div>
@@ -571,7 +544,7 @@ const ClientPortal: React.FC = () => {
                               <div>
                                 <span className="text-blue-600">Current Stage:</span>
                                 <p className="font-medium text-blue-800">
-                                  {loanFile.currentStage || 'Document Collection'}
+                                  {loanType.stages.length > 0 ? loanType.stages[loanType.stages.length - 1] : 'No Stages'}
                                 </p>
                               </div>
                               <div>
@@ -615,15 +588,15 @@ const ClientPortal: React.FC = () => {
                   {canViewLoanFiles && (
                     <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
                       <FileText className="w-8 h-8 text-brand-orange mx-auto mb-2" />
-                      <p className="font-medium text-gunmetal">Loan Files</p>
-                      <p className="text-sm text-gunmetal-light">{displayLoanFiles.length} active</p>
+                      <p className="font-medium text-gunmetal">Loan Types</p>
+                      <p className="text-sm text-gunmetal-light">{displayLoanTypes.length} available</p>
                     </div>
                   )}
                   {canViewDocuments && (
                     <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
                       <Calendar className="w-8 h-8 text-brand-orange mx-auto mb-2" />
                       <p className="font-medium text-gunmetal">Documents</p>
-                      <p className="text-sm text-gunmetal-light">{displayDocuments.length} uploaded</p>
+                      <p className="text-sm text-gunmetal-light">{documents.length} uploaded</p>
                     </div>
                   )}
                   {canViewTasks && (
@@ -647,7 +620,7 @@ const ClientPortal: React.FC = () => {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gunmetal mb-4">Recent Activity</h3>
                 <div className="space-y-3">
-                  {displayLoanFiles.slice(0, 3).map((file) => (
+                  {loanFiles.slice(0, 3).map((file) => (
                                             <div key={file._id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
                           <FileText className="w-5 h-5 text-brand-orange" />
                           <div className="flex-1">
@@ -659,7 +632,7 @@ const ClientPortal: React.FC = () => {
                           </span>
                         </div>
                   ))}
-                  {displayLoanFiles.length === 0 && (
+                  {loanFiles.length === 0 && (
                     <p className="text-gunmetal-light text-center py-4">
                       {isPreviewMode ? 'No loan files in preview mode' : 'No recent activity'}
                     </p>
@@ -669,53 +642,48 @@ const ClientPortal: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'loan-files' && canViewLoanFiles && (
+          {activeTab === 'loan-types' && canViewLoanFiles && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gunmetal mb-6">Your Loan Files</h2>
-              {displayLoanFiles.length > 0 ? (
+              <h2 className="text-2xl font-bold text-gunmetal mb-6">Your Loan Types</h2>
+              {displayLoanTypes.length > 0 ? (
                 <div className="space-y-4">
-                  {displayLoanFiles.map((file) => (
-                    <div key={file._id} className="border border-gray-200 rounded-lg p-4">
+                  {displayLoanTypes.map((loanType) => (
+                    <div key={loanType._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="font-semibold text-gunmetal">{isPreviewMode ? 'Sample Loan' : `Loan ${file._id.slice(-4)}`}</h3>
-                          <p className="text-sm text-gunmetal-light">Status: {file.status}</p>
+                          <h3 className="font-semibold text-gunmetal">{loanType.name}</h3>
+                          <p className="text-sm text-gunmetal-light">Category: {loanType.category}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-gunmetal-light">Created</p>
-                          <p className="text-sm text-gunmetal">{new Date(file.createdAt).toLocaleDateString()}</p>
+                          <p className="text-sm text-gunmetal-light">Stages:</p>
+                          <p className="text-sm text-gunmetal">
+                            {loanType.stages.length > 0 ? loanType.stages.join(', ') : 'No Stages'}
+                          </p>
                         </div>
                       </div>
                       
-                      {/* Loan Type Details */}
-                      <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                        <h4 className="font-medium text-gunmetal mb-2">Loan Type Details</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-gunmetal-light">Type:</span>
-                            <span className="ml-2 text-gunmetal">{isPreviewMode ? 'Sample Type' : 'Residential'}</span>
-                          </div>
-                          <div>
-                            <span className="text-gunmetal-light">Category:</span>
-                            <span className="ml-2 text-gunmetal">Residential</span>
-                          </div>
-                          <div>
-                            <span className="text-gunmetal-light">Stage:</span>
-                            <span className="ml-2 text-gunmetal">{file.currentStage}</span>
-                          </div>
-                          <div>
-                            <span className="text-gunmetal-light">Status:</span>
-                            <span className="ml-2 text-gunmetal capitalize">{file.status}</span>
-                          </div>
-                        </div>
-                      </div>
-
                       {/* Associated Tasks */}
                       <div className="border-t pt-3">
                         <h4 className="font-medium text-gunmetal mb-2">Associated Tasks</h4>
-                        {tasks.filter(task => task.loanFileId === file._id).length > 0 ? (
-                          <div className="space-y-2">
-                            {tasks.filter(task => task.loanFileId === file._id).map((task) => (
+                        {displayTasks.filter(task => {
+                           // For sample tasks, check loanTypeId
+                           if ((task as any).loanTypeId) {
+                             return (task as any).loanTypeId === loanType._id;
+                           }
+                           // For real tasks, we need to find the loan file that matches this loan type
+                           // For now, we'll show all tasks in preview mode
+                           return isPreviewMode;
+                         }).length > 0 ? (
+                           <div className="space-y-2">
+                             {displayTasks.filter(task => {
+                               // For sample tasks, check loanTypeId
+                               if ((task as any).loanTypeId) {
+                                 return (task as any).loanTypeId === loanType._id;
+                               }
+                               // For real tasks, we need to find the loan file that matches this loan type
+                               // For now, we'll show all tasks in preview mode
+                               return isPreviewMode;
+                             }).map((task) => (
                               <div key={task._id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                                 <div className="flex items-center space-x-2">
                                   <CheckCircle className={`w-4 h-4 ${task.status === 'completed' ? 'text-green-500' : 'text-gray-400'}`} />
@@ -732,7 +700,7 @@ const ClientPortal: React.FC = () => {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-gunmetal-light">No tasks assigned to this loan file</p>
+                          <p className="text-sm text-gunmetal-light">No tasks assigned to this loan type</p>
                         )}
                       </div>
                     </div>
@@ -742,90 +710,10 @@ const ClientPortal: React.FC = () => {
                 <div className="text-center py-8">
                   <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <p className="text-gunmetal-light mb-2">
-                    {isPreviewMode ? 'No loan files in preview mode' : 'No loan files found'}
+                    {isPreviewMode ? 'No loan types in preview mode' : 'No loan types found'}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {isPreviewMode ? 'Loan files will appear here when clients are assigned to them' : 'Your loan files will appear here once they are created'}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'documents' && canViewDocuments && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gunmetal">Documents</h2>
-                {canUploadDocuments && (
-                  <button className="bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange/90 transition-colors flex items-center space-x-2">
-                    <Upload className="w-4 h-4" />
-                    <span>Upload Document</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Upload Section */}
-              {canUploadDocuments && (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h3 className="font-medium text-gunmetal mb-3">Upload New Document</h3>
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="file"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2"
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    />
-                    <button
-                      onClick={handleFileUpload}
-                      disabled={!selectedFile || uploading}
-                      className="bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange/90 transition-colors disabled:opacity-50"
-                    >
-                      {uploading ? 'Uploading...' : 'Upload'}
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Supported formats: PDF, DOC, DOCX, JPG, JPEG, PNG
-                  </p>
-                </div>
-              )}
-
-              {/* Documents List */}
-              {displayDocuments.length > 0 ? (
-                <div className="space-y-3">
-                  {displayDocuments.map((doc) => (
-                    <div key={doc._id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="w-5 h-5 text-brand-orange" />
-                        <div>
-                          <p className="font-medium text-gunmetal">{doc.fileName}</p>
-                          <p className="text-sm text-gunmetal-light">
-                            Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          doc.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          doc.status === 'pending_review' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {doc.status.replace('_', ' ')}
-                        </span>
-                        <button className="text-brand-orange hover:text-brand-orange/80">
-                          <Download className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gunmetal-light mb-2">
-                    {isPreviewMode ? 'No documents in preview mode' : 'No documents found'}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {isPreviewMode ? 'Documents will appear here when clients upload them' : 'Your documents will appear here once they are uploaded'}
+                    {isPreviewMode ? 'Loan types will appear here when clients are assigned to them' : 'Your loan types will appear here once they are created'}
                   </p>
                 </div>
               )}
