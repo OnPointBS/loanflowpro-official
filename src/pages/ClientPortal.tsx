@@ -25,7 +25,7 @@ import {
 
 const ClientPortal: React.FC = () => {
   const { user, workspace } = useAuth();
-  const { currentWorkspace, currentMembership } = useWorkspace();
+  const { workspace: currentWorkspace, membership: currentMembership } = useWorkspace();
   const [activeTab, setActiveTab] = useState('overview');
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -75,7 +75,7 @@ const ClientPortal: React.FC = () => {
 
   // Check if user is a client or if we're in preview mode
   const isClient = clientPermissions?.role === 'CLIENT';
-  const isPreviewMode = !isClient && currentMembership?.role === 'ADVISOR' && !clientPermissions; // Allow advisors to preview when no client permissions
+  const isPreviewMode = !isClient && currentMembership?.role === 'ADVISOR';
 
   if (!isClient && !isPreviewMode) {
     return (
@@ -86,7 +86,7 @@ const ClientPortal: React.FC = () => {
           <p className="text-gunmetal-light mb-6">
             You don't have permission to access this client portal.
           </p>
-          {user.role === 'ADVISOR' && (
+          {currentMembership?.role === 'ADVISOR' && (
             <p className="text-sm text-brand-orange">
               Use "View as Client" from the Clients page to preview the client portal.
             </p>
@@ -96,12 +96,66 @@ const ClientPortal: React.FC = () => {
     );
   }
 
+  // For preview mode, show sample data
   const canViewLoanFiles = clientPermissions?.permissions?.includes('view_loan_files') || isPreviewMode;
   const canViewDocuments = clientPermissions?.permissions?.includes('view_documents') || isPreviewMode;
   const canViewTasks = clientPermissions?.permissions?.includes('view_tasks') || isPreviewMode;
   const canViewAnalytics = clientPermissions?.permissions?.includes('view_analytics') || isPreviewMode;
   const canUploadDocuments = clientPermissions?.permissions?.includes('upload_documents') || isPreviewMode;
   const canSendMessages = clientPermissions?.permissions?.includes('send_messages') || isPreviewMode;
+
+  // Sample data for preview mode
+  const sampleLoanFiles = isPreviewMode ? [
+    {
+      _id: 'sample-1' as any,
+      loanTypeId: 'sample-loan-type-1' as any,
+      status: 'in_progress',
+      currentStage: 'Document Collection',
+      createdAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
+      updatedAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
+    },
+    {
+      _id: 'sample-2' as any,
+      loanTypeId: 'sample-loan-type-2' as any,
+      status: 'under_review',
+      currentStage: 'Underwriting',
+      createdAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
+      updatedAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
+    }
+  ] : loanFiles;
+
+  const sampleDocuments = isPreviewMode ? [
+    {
+      _id: 'sample-doc-1' as any,
+      fileName: 'W-2 Form 2023.pdf',
+      fileType: 'application/pdf',
+      status: 'approved',
+      uploadedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+    },
+    {
+      _id: 'sample-doc-2' as any,
+      fileName: 'Bank Statement.pdf',
+      fileType: 'application/pdf',
+      status: 'pending_review',
+      uploadedAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
+    }
+  ] : documents;
+
+  const sampleTasks = isPreviewMode ? [
+    {
+      _id: 'sample-task-1' as any,
+      title: 'Submit W-2 Form',
+      status: 'completed',
+      dueDate: Date.now() - 2 * 24 * 60 * 60 * 1000,
+      completedAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
+    },
+    {
+      _id: 'sample-task-2' as any,
+      title: 'Provide Bank Statements',
+      status: 'in_progress',
+      dueDate: Date.now() + 3 * 24 * 60 * 60 * 1000,
+    }
+  ] : tasks;
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -265,17 +319,17 @@ const ClientPortal: React.FC = () => {
                   <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
                     <FileText className="w-8 h-8 text-brand-orange mx-auto mb-2" />
                     <p className="font-medium text-gunmetal">Loan Files</p>
-                    <p className="text-sm text-gunmetal-light">{loanFiles.length} active</p>
+                    <p className="text-sm text-gunmetal-light">{sampleLoanFiles.length} active</p>
                   </div>
                   <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
                     <Calendar className="w-8 h-8 text-brand-orange mx-auto mb-2" />
                     <p className="font-medium text-gunmetal">Documents</p>
-                    <p className="text-sm text-gunmetal-light">{documents.length} uploaded</p>
+                    <p className="text-sm text-gunmetal-light">{sampleDocuments.length} uploaded</p>
                   </div>
                   <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
                     <CheckCircle className="w-8 h-8 text-brand-orange mx-auto mb-2" />
                     <p className="font-medium text-gunmetal">Tasks</p>
-                    <p className="text-sm text-gunmetal-light">{tasks.filter(t => t.status === 'completed').length} completed</p>
+                    <p className="text-sm text-gunmetal-light">{sampleTasks.filter(t => t.status === 'completed').length} completed</p>
                   </div>
                 </div>
               </div>
@@ -284,19 +338,19 @@ const ClientPortal: React.FC = () => {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gunmetal mb-4">Recent Activity</h3>
                 <div className="space-y-3">
-                  {loanFiles.slice(0, 3).map((file) => (
-                    <div key={file._id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <FileText className="w-5 h-5 text-brand-orange" />
-                      <div className="flex-1">
-                        <p className="font-medium text-gunmetal">{file.loanType}</p>
-                        <p className="text-sm text-gunmetal-light">Status: {file.status}</p>
-                      </div>
-                      <span className="text-xs text-gunmetal-light">
-                        {new Date(file.updatedAt).toLocaleDateString()}
-                      </span>
-                    </div>
+                  {sampleLoanFiles.slice(0, 3).map((file) => (
+                                            <div key={file._id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                          <FileText className="w-5 h-5 text-brand-orange" />
+                          <div className="flex-1">
+                            <p className="font-medium text-gunmetal">{isPreviewMode ? 'Sample Loan' : `Loan ${file._id.slice(-4)}`}</p>
+                            <p className="text-sm text-gunmetal-light">Status: {file.status}</p>
+                          </div>
+                          <span className="text-xs text-gunmetal-light">
+                            {new Date(file.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
                   ))}
-                  {loanFiles.length === 0 && (
+                  {sampleLoanFiles.length === 0 && (
                     <p className="text-gunmetal-light text-center py-4">
                       {isPreviewMode ? 'No loan files in preview mode' : 'No recent activity'}
                     </p>
@@ -309,14 +363,13 @@ const ClientPortal: React.FC = () => {
           {activeTab === 'loan-files' && canViewLoanFiles && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gunmetal mb-6">Your Loan Files</h2>
-              {loanFiles.length > 0 ? (
+              {sampleLoanFiles.length > 0 ? (
                 <div className="space-y-4">
-                  {loanFiles.map((file) => (
+                  {sampleLoanFiles.map((file) => (
                     <div key={file._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <h3 className="font-semibold text-gunmetal">{file.loanType}</h3>
-                          <p className="text-sm text-gunmetal-light">Amount: ${file.loanAmount?.toLocaleString()}</p>
+                          <h3 className="font-semibold text-gunmetal">{isPreviewMode ? 'Sample Loan' : `Loan ${file._id.slice(-4)}`}</h3>
                           <p className="text-sm text-gunmetal-light">Status: {file.status}</p>
                         </div>
                         <div className="text-right">
@@ -331,15 +384,15 @@ const ClientPortal: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-gunmetal-light">Type:</span>
-                            <span className="ml-2 text-gunmetal">{file.loanType}</span>
+                            <span className="ml-2 text-gunmetal">{isPreviewMode ? 'Sample Type' : 'Residential'}</span>
                           </div>
                           <div>
                             <span className="text-gunmetal-light">Category:</span>
-                            <span className="ml-2 text-gunmetal">{file.category || 'Residential'}</span>
+                            <span className="ml-2 text-gunmetal">Residential</span>
                           </div>
                           <div>
-                            <span className="text-gunmetal-light">Amount:</span>
-                            <span className="ml-2 text-gunmetal">${file.loanAmount?.toLocaleString() || 'TBD'}</span>
+                            <span className="text-gunmetal-light">Stage:</span>
+                            <span className="ml-2 text-gunmetal">{file.currentStage}</span>
                           </div>
                           <div>
                             <span className="text-gunmetal-light">Status:</span>
@@ -428,9 +481,9 @@ const ClientPortal: React.FC = () => {
               )}
 
               {/* Documents List */}
-              {documents.length > 0 ? (
+              {sampleDocuments.length > 0 ? (
                 <div className="space-y-3">
-                  {documents.map((doc) => (
+                  {sampleDocuments.map((doc) => (
                     <div key={doc._id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <FileText className="w-5 h-5 text-brand-orange" />
@@ -473,9 +526,9 @@ const ClientPortal: React.FC = () => {
           {activeTab === 'tasks' && canViewTasks && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gunmetal mb-6">Your Tasks</h2>
-              {tasks.length > 0 ? (
+              {sampleTasks.length > 0 ? (
                 <div className="space-y-4">
-                  {tasks.map((task) => (
+                  {sampleTasks.map((task) => (
                     <div key={task._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">

@@ -3,35 +3,38 @@ import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { ConvexError } from "convex/values";
 
-// Send invitation email action
-export const sendInvitationEmail = action({
+// Send partner invitation email action
+export const sendPartnerInvitationEmail = action({
   args: {
-    clientEmail: v.string(),
-    clientName: v.string(),
+    partnerEmail: v.string(),
+    partnerName: v.string(),
     workspaceName: v.string(),
     inviterName: v.string(),
     inviteUrl: v.string(),
+    partnerRole: v.string(),
   },
   handler: async (ctx, args) => {
     // In a real implementation, you would use Resend or another email service
     // For now, we'll log the email details
-    console.log('📧 Sending invitation email:', {
-      to: args.clientEmail,
-      clientName: args.clientName,
+    console.log('📧 Sending partner invitation email:', {
+      to: args.partnerEmail,
+      partnerName: args.partnerName,
       workspaceName: args.workspaceName,
       inviterName: args.inviterName,
       inviteUrl: args.inviteUrl,
+      partnerRole: args.partnerRole,
     });
 
     // TODO: Integrate with Resend email service
     // const resend = new Resend(process.env.RESEND_API_KEY);
     // await resend.emails.send({
     //   from: 'noreply@loanflowpro.com',
-    //   to: args.clientEmail,
-    //   subject: `You've been invited to join ${args.workspaceName}`,
+    //   to: args.partnerEmail,
+    //   subject: `You've been invited as a ${args.partnerRole} to ${args.workspaceName}`,
     //   html: `
-    //     <h2>Hello ${args.clientName},</h2>
-    //     <p>${args.inviterName} has invited you to join their workspace on LoanFlowPro.</p>
+    //     <h2>Hello ${args.partnerName},</h2>
+    //     <p>${args.inviterName} has invited you to join their workspace on LoanFlowPro as a ${args.partnerRole}.</p>
+    //     <p>As a partner, you'll be able to monitor loan progress and stay updated on important milestones.</p>
     //     <p>Click the link below to accept the invitation:</p>
     //     <a href="${args.inviteUrl}">Accept Invitation</a>
     //     <p>This invitation will expire in 7 days.</p>
@@ -42,17 +45,20 @@ export const sendInvitationEmail = action({
   },
 });
 
-// Create a client invitation
-export const createInvite = mutation({
+// Create a partner invitation
+export const createPartnerInvite = mutation({
   args: {
     workspaceId: v.id("workspaces"),
-    clientEmail: v.string(),
-    clientName: v.string(),
+    partnerEmail: v.string(),
+    partnerName: v.string(),
+    partnerRole: v.string(), // e.g., "Real Estate Agent", "Title Company"
+    company: v.optional(v.string()),
+    phone: v.optional(v.string()),
     invitedBy: v.id("users"),
-    permissions: v.array(v.string()), // What the client can access
+    permissions: v.array(v.string()), // What the partner can access
     expiresAt: v.optional(v.number()),
   },
-  handler: async (ctx, { workspaceId, clientEmail, clientName, invitedBy, permissions, expiresAt }) => {
+  handler: async (ctx, { workspaceId, partnerEmail, partnerName, partnerRole, company, phone, invitedBy, permissions, expiresAt }) => {
     // Check if user has permission to invite (must be ADVISOR or STAFF)
     const inviterMembership = await ctx.db
       .query("workspaceMembers")
@@ -61,7 +67,7 @@ export const createInvite = mutation({
       .first();
 
     if (!inviterMembership || (inviterMembership.role !== "ADVISOR" && inviterMembership.role !== "STAFF")) {
-      throw new ConvexError("You don't have permission to invite clients to this workspace");
+      throw new ConvexError("You don't have permission to invite partners to this workspace");
     }
 
     // Get workspace and inviter details for email
@@ -72,32 +78,35 @@ export const createInvite = mutation({
       throw new ConvexError("Workspace or inviter not found");
     }
 
-    // Check if client already exists in this workspace
-    const existingClient = await ctx.db
-      .query("clients")
+    // Check if partner already exists in this workspace
+    const existingPartner = await ctx.db
+      .query("partners")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
-      .filter((q) => q.eq(q.field("email"), clientEmail))
+      .filter((q) => q.eq(q.field("email"), partnerEmail))
       .first();
 
-    if (existingClient) {
-      throw new ConvexError("Client already exists in this workspace");
+    if (existingPartner) {
+      throw new ConvexError("Partner already exists in this workspace");
     }
 
-    // Create the client record
-    const clientId = await ctx.db.insert("clients", {
+    // Create the partner record
+    const partnerId = await ctx.db.insert("partners", {
       workspaceId,
-      name: clientName,
-      email: clientEmail,
+      name: partnerName,
+      email: partnerEmail,
+      phone,
+      company,
+      role: partnerRole,
       status: "invited",
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
     // Create invitation record
-    const inviteId = await ctx.db.insert("clientInvites", {
+    const inviteId = await ctx.db.insert("partnerInvites", {
       workspaceId,
-      clientId,
-      clientEmail,
+      partnerId,
+      partnerEmail,
       invitedBy,
       permissions,
       status: "pending",
@@ -106,55 +115,56 @@ export const createInvite = mutation({
     });
 
     // Send invitation email
-    const inviteUrl = `${process.env.SITE_URL || 'https://loanflowpro.com'}/client/accept?inviteId=${inviteId}`;
+    const inviteUrl = `${process.env.SITE_URL || 'https://loanflowpro.com'}/partner/accept?inviteId=${inviteId}`;
     
     try {
-      await ctx.scheduler.runAfter(0, api.clientInvites.sendInvitationEmail, {
-        clientEmail,
-        clientName,
+      await ctx.scheduler.runAfter(0, api.partners.sendPartnerInvitationEmail, {
+        partnerEmail,
+        partnerName,
         workspaceName: workspace.name,
         inviterName: inviter.name || inviter.email,
         inviteUrl,
+        partnerRole,
       });
     } catch (error) {
-      console.error('Failed to schedule invitation email:', error);
+      console.error('Failed to schedule partner invitation email:', error);
       // Don't fail the invitation creation if email fails
     }
 
-    return { inviteId, clientId };
+    return { inviteId, partnerId };
   },
 });
 
-// Get pending invitations for a workspace
-export const getPendingInvites = query({
+// Get pending partner invitations for a workspace
+export const getPendingPartnerInvites = query({
   args: { workspaceId: v.id("workspaces") },
   handler: async (ctx, { workspaceId }) => {
     return await ctx.db
-      .query("clientInvites")
+      .query("partnerInvites")
       .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
       .filter((q) => q.eq(q.field("status"), "pending"))
       .collect();
   },
 });
 
-// Accept client invitation
-export const acceptInvite = mutation({
+// Accept partner invitation
+export const acceptPartnerInvite = mutation({
   args: { 
-    inviteId: v.id("clientInvites"),
+    inviteId: v.id("partnerInvites"),
     userId: v.id("users"),
   },
   handler: async (ctx, { inviteId, userId }) => {
     const invite = await ctx.db.get(inviteId);
     if (!invite) {
-      throw new Error("Invitation not found");
+      throw new ConvexError("Invitation not found");
     }
 
     if (invite.status !== "pending") {
-      throw new Error("Invitation has already been processed");
+      throw new ConvexError("Invitation has already been processed");
     }
 
     if (invite.expiresAt < Date.now()) {
-      throw new Error("Invitation has expired");
+      throw new ConvexError("Invitation has expired");
     }
 
     // Update invitation status
@@ -164,17 +174,17 @@ export const acceptInvite = mutation({
       acceptedBy: userId,
     });
 
-    // Update client status
-    await ctx.db.patch(invite.clientId, { 
+    // Update partner status
+    await ctx.db.patch(invite.partnerId, { 
       status: "active",
       updatedAt: Date.now(),
     });
 
-    // Create workspace membership for the client
+    // Create workspace membership for the partner
     const membershipId = await ctx.db.insert("workspaceMembers", {
       workspaceId: invite.workspaceId,
       userId,
-      role: "CLIENT",
+      role: "PARTNER",
       status: "active",
       permissions: invite.permissions,
       createdAt: Date.now(),
@@ -184,13 +194,13 @@ export const acceptInvite = mutation({
   },
 });
 
-// Decline client invitation
-export const declineInvite = mutation({
-  args: { inviteId: v.id("clientInvites") },
+// Decline partner invitation
+export const declinePartnerInvite = mutation({
+  args: { inviteId: v.id("partnerInvites") },
   handler: async (ctx, { inviteId }) => {
     const invite = await ctx.db.get(inviteId);
     if (!invite) {
-      throw new Error("Invitation not found");
+      throw new ConvexError("Invitation not found");
     }
 
     await ctx.db.patch(inviteId, { 
@@ -198,8 +208,8 @@ export const declineInvite = mutation({
       declinedAt: Date.now(),
     });
 
-    // Update client status
-    await ctx.db.patch(invite.clientId, { 
+    // Update partner status
+    await ctx.db.patch(invite.partnerId, { 
       status: "declined",
       updatedAt: Date.now(),
     });
@@ -208,8 +218,8 @@ export const declineInvite = mutation({
   },
 });
 
-// Get client permissions
-export const getClientPermissions = query({
+// Get partner permissions
+export const getPartnerPermissions = query({
   args: { 
     workspaceId: v.id("workspaces"),
     userId: v.id("users"),
@@ -221,7 +231,7 @@ export const getClientPermissions = query({
       .filter((q) => q.eq(q.field("workspaceId"), workspaceId))
       .first();
 
-    if (!membership || membership.role !== "CLIENT") {
+    if (!membership || membership.role !== "PARTNER") {
       return null;
     }
 
@@ -230,5 +240,16 @@ export const getClientPermissions = query({
       permissions: membership.permissions || [],
       status: membership.status,
     };
+  },
+});
+
+// List all partners in a workspace
+export const listPartners = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, { workspaceId }) => {
+    return await ctx.db
+      .query("partners")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
   },
 });

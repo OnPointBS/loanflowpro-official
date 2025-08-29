@@ -52,12 +52,41 @@ export default defineSchema({
   workspaceMembers: defineTable({
     workspaceId: v.id("workspaces"),
     userId: v.id("users"),
-    role: v.union(v.literal("ADVISOR"), v.literal("STAFF"), v.literal("CLIENT")),
+    role: v.union(v.literal("ADVISOR"), v.literal("STAFF"), v.literal("CLIENT"), v.literal("PARTNER")),
     status: v.union(v.literal("active"), v.literal("invited"), v.literal("removed")),
     permissions: v.optional(v.array(v.string())), // What this user can access
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
   }).index("by_workspace", ["workspaceId"]).index("by_user", ["userId"]).index("by_role", ["role"]),
+
+  // Partner management (real estate agents, etc.)
+  partners: defineTable({
+    workspaceId: v.id("workspaces"),
+    name: v.string(),
+    email: v.string(),
+    phone: v.optional(v.string()),
+    company: v.optional(v.string()),
+    role: v.string(), // e.g., "Real Estate Agent", "Title Company", "Insurance Agent"
+    notes: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("invited"), v.literal("declined")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]).index("by_email", ["email"]),
+
+  // Partner invitations
+  partnerInvites: defineTable({
+    workspaceId: v.id("workspaces"),
+    partnerId: v.id("partners"),
+    partnerEmail: v.string(),
+    invitedBy: v.id("users"),
+    permissions: v.array(v.string()), // What the partner can access
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined"), v.literal("expired")),
+    expiresAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    acceptedBy: v.optional(v.id("users")),
+    declinedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]).index("by_email", ["partnerEmail"]).index("by_status", ["status"]),
 
   // Client invitations
   clientInvites: defineTable({

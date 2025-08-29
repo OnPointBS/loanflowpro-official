@@ -29,6 +29,7 @@ import type * as loanTypes from "../loanTypes.js";
 import type * as messages from "../messages.js";
 import type * as migrations from "../migrations.js";
 import type * as ocr from "../ocr.js";
+import type * as partners from "../partners.js";
 import type * as storageUsage from "../storageUsage.js";
 import type * as taskTemplateLoanTypes from "../taskTemplateLoanTypes.js";
 import type * as taskTemplates from "../taskTemplates.js";
@@ -65,6 +66,7 @@ declare const fullApi: ApiFromModules<{
   messages: typeof messages;
   migrations: typeof migrations;
   ocr: typeof ocr;
+  partners: typeof partners;
   storageUsage: typeof storageUsage;
   taskTemplateLoanTypes: typeof taskTemplateLoanTypes;
   taskTemplates: typeof taskTemplates;

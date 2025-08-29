@@ -827,8 +827,8 @@ const Clients: React.FC = () => {
             onClick={() => setIsClientInviteModalOpen(true)}
             className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30 flex items-center space-x-2"
           >
-            <UserPlus className="w-4 h-4" />
-            <span>Invite to Portal</span>
+                      <UserPlus className="w-4 h-4" />
+          <span>Invite Client/Partner</span>
           </button>
           <button
             onClick={() => window.open('/client', '_blank')}
