@@ -21,7 +21,8 @@ import {
   Trash2,
   Edit,
   Check,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 
 const ClientPortal: React.FC = () => {
@@ -120,10 +121,27 @@ const ClientPortal: React.FC = () => {
   const canUploadDocuments = clientPermissions?.permissions?.includes('upload_documents') || isPreviewMode;
   const canSendMessages = clientPermissions?.permissions?.includes('send_messages') || isPreviewMode;
 
-  // Use real data instead of sample data
-  const displayLoanFiles = loanFiles;
-  const displayDocuments = documents;
-  const displayTasks = tasks;
+  // Filter data based on permissions
+  const displayLoanFiles = canViewLoanFiles ? loanFiles : [];
+  const displayDocuments = canViewDocuments ? documents : [];
+  const displayTasks = canViewTasks ? tasks : [];
+
+  // Permission-based access control
+  const hasAnyAccess = canViewLoanFiles || canViewDocuments || canViewTasks || canViewAnalytics || canUploadDocuments || canSendMessages;
+
+  if (!hasAnyAccess && !isPreviewMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="text-yellow-500 text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-gunmetal mb-4">No Access Granted</h2>
+          <p className="text-gunmetal-light mb-6">
+            You don't have any permissions to view content in this portal. Please contact your advisor.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -298,21 +316,34 @@ const ClientPortal: React.FC = () => {
                   }
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                  <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
-                    <FileText className="w-8 h-8 text-brand-orange mx-auto mb-2" />
-                    <p className="font-medium text-gunmetal">Loan Files</p>
-                    <p className="text-sm text-gunmetal-light">{displayLoanFiles.length} active</p>
-                  </div>
-                  <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
-                    <Calendar className="w-8 h-8 text-brand-orange mx-auto mb-2" />
-                    <p className="font-medium text-gunmetal">Documents</p>
-                    <p className="text-sm text-gunmetal-light">{displayDocuments.length} uploaded</p>
-                  </div>
-                  <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
-                    <CheckCircle className="w-8 h-8 text-brand-orange mx-auto mb-2" />
-                    <p className="font-medium text-gunmetal">Tasks</p>
-                    <p className="text-sm text-gunmetal-light">{displayTasks.filter(t => t.status === 'completed').length} completed</p>
-                  </div>
+                  {canViewLoanFiles && (
+                    <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
+                      <FileText className="w-8 h-8 text-brand-orange mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Loan Files</p>
+                      <p className="text-sm text-gunmetal-light">{displayLoanFiles.length} active</p>
+                    </div>
+                  )}
+                  {canViewDocuments && (
+                    <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
+                      <Calendar className="w-8 h-8 text-brand-orange mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Documents</p>
+                      <p className="text-sm text-gunmetal-light">{displayDocuments.length} uploaded</p>
+                    </div>
+                  )}
+                  {canViewTasks && (
+                    <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
+                      <CheckCircle className="w-8 h-8 text-brand-orange mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Tasks</p>
+                      <p className="text-sm text-gunmetal-light">{displayTasks.filter(t => t.status === 'completed').length} completed</p>
+                    </div>
+                  )}
+                  {!canViewLoanFiles && !canViewDocuments && !canViewTasks && (
+                    <div className="col-span-3 text-center p-4 bg-yellow-100 rounded-lg">
+                      <Shield className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Limited Access</p>
+                      <p className="text-sm text-yellow-600">Contact your advisor for permissions</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

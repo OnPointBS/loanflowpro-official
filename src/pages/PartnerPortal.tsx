@@ -24,7 +24,8 @@ import {
   X,
   Building,
   Users,
-  TrendingUp
+  TrendingUp,
+  Shield
 } from 'lucide-react';
 
 const PartnerPortal: React.FC = () => {
@@ -125,11 +126,28 @@ const PartnerPortal: React.FC = () => {
   const canViewClientStatus = partnerPermissions?.permissions?.includes('view_client_status') || isPreviewMode;
   const canSendMessages = partnerPermissions?.permissions?.includes('send_messages') || isPreviewMode;
 
-  // Use real data instead of sample data
-  const displayLoanFiles = loanFiles;
-  const displayDocuments = documents;
-  const displayTasks = tasks;
-  const displayClients = clients;
+  // Filter data based on permissions
+  const displayLoanFiles = canViewLoanFiles ? loanFiles : [];
+  const displayDocuments = canViewDocuments ? documents : [];
+  const displayTasks = canViewTasks ? tasks : [];
+  const displayClients = canViewClientStatus ? clients : [];
+
+  // Permission-based access control
+  const hasAnyAccess = canViewLoanFiles || canViewDocuments || canViewTasks || canViewAnalytics || canViewClientStatus || canSendMessages;
+
+  if (!hasAnyAccess && !isPreviewMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="text-yellow-500 text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-gunmetal mb-4">No Access Granted</h2>
+          <p className="text-gunmetal-light mb-6">
+            You don't have any permissions to view content in this portal. Please contact your advisor.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -275,21 +293,34 @@ const PartnerPortal: React.FC = () => {
                   }
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                  <div className="text-center p-4 bg-blue-100 rounded-lg">
-                    <TrendingUp className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="font-medium text-gunmetal">Loan Progress</p>
-                    <p className="text-sm text-gunmetal-light">{displayLoanFiles.length} active</p>
-                  </div>
-                  <div className="text-center p-4 bg-blue-100 rounded-lg">
-                    <FileText className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="font-medium text-gunmetal">Documents</p>
-                    <p className="text-sm text-gunmetal-light">{displayDocuments.length} available</p>
-                  </div>
-                  <div className="text-center p-4 bg-blue-100 rounded-lg">
-                    <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="font-medium text-gunmetal">Client Status</p>
-                    <p className="text-sm text-gunmetal-light">Monitoring enabled</p>
-                  </div>
+                  {canViewLoanFiles && (
+                    <div className="text-center p-4 bg-blue-100 rounded-lg">
+                      <TrendingUp className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Loan Progress</p>
+                      <p className="text-sm text-gunmetal-light">{displayLoanFiles.length} active</p>
+                    </div>
+                  )}
+                  {canViewDocuments && (
+                    <div className="text-center p-4 bg-blue-100 rounded-lg">
+                      <FileText className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Documents</p>
+                      <p className="text-sm text-gunmetal-light">{displayDocuments.length} available</p>
+                    </div>
+                  )}
+                  {canViewClientStatus && (
+                    <div className="text-center p-4 bg-blue-100 rounded-lg">
+                      <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Client Status</p>
+                      <p className="text-sm text-gunmetal-light">{displayClients.length} clients</p>
+                    </div>
+                  )}
+                  {!canViewLoanFiles && !canViewDocuments && !canViewClientStatus && (
+                    <div className="col-span-3 text-center p-4 bg-yellow-100 rounded-lg">
+                      <Shield className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+                      <p className="font-medium text-gunmetal">Limited Access</p>
+                      <p className="text-sm text-yellow-600">Contact your advisor for permissions</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
