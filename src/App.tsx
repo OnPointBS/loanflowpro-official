@@ -42,6 +42,7 @@ import Settings from './pages/Settings';
 import Billing from './pages/Billing';
 import ClientPortal from './pages/ClientPortal';
 import PartnerPortal from './pages/PartnerPortal';
+import TestPage from './pages/TestPage';
 import { api } from '../convex/_generated/api';
 import './App.css';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -211,6 +212,7 @@ function App() {
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/signin" element={<Login />} />
                 <Route path="/verify" element={<VerifyEmail />} />
+                <Route path="/test" element={<TestPage />} />
                 
                 {/* Feature detail pages */}
                 <Route path="/features/client-management" element={<ClientManagement />} />
