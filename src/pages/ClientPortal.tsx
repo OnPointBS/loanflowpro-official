@@ -73,7 +73,7 @@ const ClientPortal: React.FC = () => {
 
   // Check if user is a client or if we're in preview mode
   const isClient = clientPermissions?.role === 'CLIENT';
-  const isPreviewMode = !isClient && user.role === 'ADVISOR' && !clientPermissions; // Allow advisors to preview when no client permissions
+  const isPreviewMode = !isClient && workspace?.membership?.role === 'ADVISOR' && !clientPermissions; // Allow advisors to preview when no client permissions
 
   if (!isClient && !isPreviewMode) {
     return (
