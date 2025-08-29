@@ -81,7 +81,7 @@ export default defineSchema({
     email: v.string(),
     phone: v.optional(v.string()),
     notes: v.optional(v.string()),
-    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("prospect")),
+    status: v.union(v.literal("active"), v.literal("inactive"), v.literal("prospect"), v.literal("invited"), v.literal("declined")),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]).index("by_email", ["email"]),
