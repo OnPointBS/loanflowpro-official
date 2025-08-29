@@ -322,6 +322,31 @@ export const getPartnerPermissions = query({
   },
 });
 
+// Get partner permissions by partner ID (for permission management)
+export const getPartnerPermissionsById = query({
+  args: { 
+    workspaceId: v.id("workspaces"),
+    partnerId: v.id("partners"),
+  },
+  handler: async (ctx, { workspaceId, partnerId }) => {
+    const partner = await ctx.db
+      .query("partners")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => q.eq(q.field("_id"), partnerId))
+      .first();
+
+    if (!partner) {
+      return null;
+    }
+
+    return {
+      role: "PARTNER",
+      permissions: partner.permissions || [],
+      status: partner.status,
+    };
+  },
+});
+
 // List all partners in a workspace
 export const listPartners = query({
   args: { workspaceId: v.id("workspaces") },

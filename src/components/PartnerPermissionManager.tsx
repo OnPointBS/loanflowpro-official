@@ -36,7 +36,7 @@ const PartnerPermissionManager: React.FC<PartnerPermissionManagerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
 
   // Get current partner permissions
-  const partnerPermissions = useQuery(api.partners.getPartnerPermissions, {
+  const partnerPermissions = useQuery(api.partners.getPartnerPermissionsById, {
     workspaceId: workspace?.id || '',
     partnerId: partnerId as any,
   });
