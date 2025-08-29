@@ -4,6 +4,8 @@ import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
+import { UserPlus } from 'lucide-react';
+import ClientInviteManager from '../components/ClientInviteManager';
 
 interface Client {
   _id: string;
@@ -59,6 +61,7 @@ const Clients: React.FC = () => {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [selectedTaskToEdit, setSelectedTaskToEdit] = useState<any>(null);
+  const [isClientInviteModalOpen, setIsClientInviteModalOpen] = useState(false);
   const [newTaskForm, setNewTaskForm] = useState({
     title: '',
     instructions: '',
@@ -819,6 +822,13 @@ const Clients: React.FC = () => {
                 className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30"
               >
                 Assign Loan Type
+              </button>
+              <button
+                onClick={() => setIsClientInviteModalOpen(true)}
+                className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30 flex items-center space-x-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Invite to Portal</span>
               </button>
               <button
                 onClick={() => setIsAddModalOpen(true)}
@@ -2317,6 +2327,11 @@ const Clients: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Client Invite Modal */}
+      {isClientInviteModalOpen && (
+        <ClientInviteManager onClose={() => setIsClientInviteModalOpen(false)} />
       )}
     </div>
   );

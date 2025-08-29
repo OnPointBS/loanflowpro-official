@@ -459,3 +459,85 @@ export const getTaskStats = query({
     return stats;
   },
 });
+
+// List tasks by client (for client portal)
+export const listByClient = query({
+  args: { 
+    workspaceId: v.id("workspaces"),
+    clientId: v.id("users"),
+  },
+  handler: async (ctx, { workspaceId, clientId }) => {
+    // Check if user has permission to view tasks
+    const membership = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_user", (q) => q.eq("userId", clientId))
+      .filter((q) => q.eq(q.field("workspaceId"), workspaceId))
+      .first();
+
+    if (!membership || membership.role !== "CLIENT") {
+      return [];
+    }
+
+    // Get the user's email to find their client record
+    const user = await ctx.db.get(clientId);
+    if (!user) return [];
+
+    // Find the client record by email
+    const client = await ctx.db
+      .query("clients")
+      .withIndex("by_email", (q) => q.eq("email", user.email))
+      .filter((q) => q.eq(q.field("workspaceId"), workspaceId))
+      .first();
+
+    if (!client) return [];
+
+    // Get tasks for this client (both from loan files and client-specific tasks)
+    const loanFileTasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("assigneeRole"), "CLIENT"),
+          q.eq(q.field("assigneeUserId"), clientId)
+        )
+      )
+      .collect();
+
+    const clientTasks = await ctx.db
+      .query("clientTasks")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("clientId"), client._id),
+          q.eq(q.field("assigneeRole"), "CLIENT")
+        )
+      )
+      .collect();
+
+    // Combine and format tasks
+    const allTasks = [
+      ...loanFileTasks.map(task => ({
+        _id: task._id,
+        title: task.title,
+        description: task.instructions,
+        status: task.status,
+        priority: task.priority,
+        dueAt: task.dueDate,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+      })),
+      ...clientTasks.map(task => ({
+        _id: task._id,
+        title: task.title,
+        description: task.instructions,
+        status: task.status,
+        priority: task.priority,
+        dueAt: task.dueDate || (task.createdAt + (task.dueInDays * 24 * 60 * 60 * 1000)),
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+      }))
+    ];
+
+    return allTasks.sort((a, b) => (b.dueAt || 0) - (a.dueAt || 0));
+  },
+});

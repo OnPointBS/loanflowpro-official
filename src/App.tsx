@@ -40,6 +40,7 @@ import Tasks from './pages/Tasks';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Billing from './pages/Billing';
+import ClientPortal from './pages/ClientPortal';
 import { api } from '../convex/_generated/api';
 import './App.css';
 
@@ -186,6 +187,15 @@ function App() {
                   <Route path="analytics" element={<Analytics />} />
                   <Route path="settings" element={<Settings />} />
                   <Route path="billing" element={<Billing />} />
+                </Route>
+
+                {/* Client Portal Routes */}
+                <Route path="/client" element={
+                  <ProtectedRoute>
+                    <ClientPortal />
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<ClientPortal />} />
                 </Route>
                 
                 {/* Default redirect */}

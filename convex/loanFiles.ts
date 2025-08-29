@@ -110,6 +110,46 @@ export const listByWorkspace = query({
   },
 });
 
+// List loan files by client (for client portal)
+export const listByClient = query({
+  args: { 
+    workspaceId: v.id("workspaces"),
+    clientId: v.id("users"),
+  },
+  handler: async (ctx, { workspaceId, clientId }) => {
+    // Check if user has permission to view loan files
+    const membership = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_user", (q) => q.eq("userId", clientId))
+      .filter((q) => q.eq(q.field("workspaceId"), workspaceId))
+      .first();
+
+    if (!membership || membership.role !== "CLIENT") {
+      return [];
+    }
+
+    // Get the user's email to find their client record
+    const user = await ctx.db.get(clientId);
+    if (!user) return [];
+
+    // Find the client record by email
+    const client = await ctx.db
+      .query("clients")
+      .withIndex("by_email", (q) => q.eq("email", user.email))
+      .filter((q) => q.eq(q.field("workspaceId"), workspaceId))
+      .first();
+
+    if (!client) return [];
+
+    // Get loan files for this client
+    return await ctx.db
+      .query("loanFiles")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => q.eq(q.field("clientId"), client._id))
+      .collect();
+  },
+});
+
 // Update a loan file
 export const update = mutation({
   args: {

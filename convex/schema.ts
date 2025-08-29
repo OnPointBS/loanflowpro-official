@@ -54,9 +54,25 @@ export default defineSchema({
     userId: v.id("users"),
     role: v.union(v.literal("ADVISOR"), v.literal("STAFF"), v.literal("CLIENT")),
     status: v.union(v.literal("active"), v.literal("invited"), v.literal("removed")),
+    permissions: v.optional(v.array(v.string())), // What this user can access
     createdAt: v.number(),
     updatedAt: v.optional(v.number()),
   }).index("by_workspace", ["workspaceId"]).index("by_user", ["userId"]).index("by_role", ["role"]),
+
+  // Client invitations
+  clientInvites: defineTable({
+    workspaceId: v.id("workspaces"),
+    clientId: v.id("clients"),
+    clientEmail: v.string(),
+    invitedBy: v.id("users"),
+    permissions: v.array(v.string()), // What the client can access
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("declined"), v.literal("expired")),
+    expiresAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    acceptedBy: v.optional(v.id("users")),
+    declinedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]).index("by_email", ["clientEmail"]).index("by_status", ["status"]),
 
   // Client management
   clients: defineTable({
