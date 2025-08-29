@@ -54,6 +54,9 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     console.log('🔍 [DEBUG] - currentWorkspace state:', currentWorkspace);
     console.log('🔍 [DEBUG] - isLoading state:', isLoading);
     
+    // Set loading to true when user/workspace changes
+    setIsLoading(true);
+    
     // Check if this is a demo user
     const storedDemoUser = localStorage.getItem("demoUser");
     console.log('🔍 [DEBUG] - localStorage demoUser:', storedDemoUser);
@@ -157,7 +160,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     }
     
     setIsLoading(false);
-  }, []); // Run only once on mount
+  }, [user, workspace]); // Re-run when user or workspace changes
 
   // Add a listener for storage changes to keep workspace state in sync
   useEffect(() => {

@@ -38,13 +38,14 @@ const Dashboard: React.FC = () => {
   // Don't render until workspace is loaded
   if (!workspace?.id) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-orange/10 to-gunmetal/10">
         <div className="text-center">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-brand-orange/20 border-t-brand-orange rounded-full animate-spin mx-auto mb-6"></div>
             <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-brand-orange-dark rounded-full animate-spin mx-auto" style={{ animationDelay: '-0.5s' }}></div>
           </div>
           <p className="text-gunmetal-light text-xl font-medium animate-pulse">Loading workspace...</p>
+          <p className="text-gunmetal-light text-sm mt-2">Setting up your dashboard...</p>
         </div>
       </div>
     );
@@ -53,14 +54,19 @@ const Dashboard: React.FC = () => {
   // Loading state while data is being fetched
   if (!dashboardStats || !recentActivity || !todaysTasks) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-brand-orange/20 border-t-brand-orange rounded-full animate-spin mx-auto mb-6"></div>
-              <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-brand-orange-dark rounded-full animate-spin mx-auto" style={{ animationDelay: '-0.5s' }}></div>
+      <div className="min-h-screen bg-gradient-to-br from-brand-orange/10 to-gunmetal/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-6">
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-brand-orange/20 border-t-brand-orange rounded-full animate-spin mx-auto mb-6"></div>
+                  <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-brand-orange-dark rounded-full animate-spin mx-auto" style={{ animationDelay: '-0.5s' }}></div>
+                </div>
+                <p className="text-gunmetal-light text-xl font-medium animate-pulse">Loading dashboard data...</p>
+                <p className="text-gunmetal-light text-sm mt-2">Fetching your latest information...</p>
+              </div>
             </div>
-            <p className="text-gunmetal-light text-xl font-medium animate-pulse">Loading dashboard data...</p>
           </div>
         </div>
       </div>
