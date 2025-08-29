@@ -25,6 +25,8 @@ const ClientPortal: React.FC = () => {
   const [expandedLoanTypes, setExpandedLoanTypes] = useState<Set<string>>(new Set());
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
+  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
+  const [editingTask, setEditingTask] = useState<string | null>(null);
   
   // Get client ID from URL
   const clientIdFromUrl = searchParams.get('clientId');
@@ -34,6 +36,7 @@ const ClientPortal: React.FC = () => {
 
   // Mutations
   const uploadDocument = useMutation(api.documents.uploadDocument);
+  const updateClientTask = useMutation(api.clientLoanTypes.updateClientTask);
 
   // Get real client data if we have a client ID
   const clientData = useQuery(api.clients.getClient, {
@@ -195,6 +198,47 @@ const ClientPortal: React.FC = () => {
     } finally {
       setUploadingFiles(prev => ({ ...prev, [taskId]: false }));
     }
+  };
+
+  // Handle task note update
+  const handleTaskNoteUpdate = async (taskId: string) => {
+    const note = taskNotes[taskId];
+    if (!note) return;
+
+    try {
+      await updateClientTask({
+        taskId: taskId as any,
+        updates: {
+          clientNotes: note
+        }
+      });
+      
+      // Clear editing state
+      setEditingTask(null);
+      setTaskNotes(prev => ({ ...prev, [taskId]: '' }));
+    } catch (error) {
+      console.error('Error updating task note:', error);
+    }
+  };
+
+  // Handle task status change
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await updateClientTask({
+        taskId: taskId as any,
+        updates: {
+          status: newStatus as any
+        }
+      });
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
+  };
+
+  // Start editing a task note
+  const startEditingNote = (taskId: string, currentNote: string) => {
+    setEditingTask(taskId);
+    setTaskNotes(prev => ({ ...prev, [taskId]: currentNote || '' }));
   };
 
   // Loading state
@@ -388,6 +432,101 @@ const ClientPortal: React.FC = () => {
                                           </div>
                                         )}
                                         
+                                        {/* Task Note Management */}
+                                        <div className="mt-3">
+                                          <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-gunmetal">Your Notes</span>
+                                            {editingTask !== task._id && (
+                                              <button
+                                                onClick={() => startEditingNote(task._id, task.clientNote || '')}
+                                                className="text-sm text-blue-600 hover:text-blue-800"
+                                              >
+                                                {task.clientNote ? 'Edit Note' : 'Add Note'}
+                                              </button>
+                                            )}
+                                          </div>
+                                          
+                                          {editingTask === task._id ? (
+                                            <div className="space-y-2">
+                                              <textarea
+                                                value={taskNotes[task._id] || ''}
+                                                onChange={(e) => setTaskNotes(prev => ({ ...prev, [task._id]: e.target.value }))}
+                                                placeholder="Add your notes about this task..."
+                                                className="w-full p-2 border border-gray-300 rounded text-sm resize-none"
+                                                rows={3}
+                                              />
+                                              <div className="flex space-x-2">
+                                                <button
+                                                  onClick={() => handleTaskNoteUpdate(task._id)}
+                                                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                                                >
+                                                  Save Note
+                                                </button>
+                                                <button
+                                                  onClick={() => {
+                                                    setEditingTask(null);
+                                                    setTaskNotes(prev => ({ ...prev, [task._id]: '' }));
+                                                  }}
+                                                  className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600"
+                                                >
+                                                  Cancel
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="bg-gray-50 p-2 rounded text-sm">
+                                              <p className="text-gunmetal-light">
+                                                {task.clientNote || 'No notes added yet'}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Task Status Management */}
+                                        <div className="mt-3">
+                                          <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-gunmetal">Task Status</span>
+                                          </div>
+                                          
+                                          <div className="flex space-x-2">
+                                            <button
+                                              onClick={() => handleTaskStatusChange(task._id, 'in_progress')}
+                                              disabled={task.status === 'in_progress'}
+                                              className={`px-3 py-1 text-sm rounded ${
+                                                task.status === 'in_progress'
+                                                  ? 'bg-blue-100 text-blue-800 cursor-not-allowed'
+                                                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                                              }`}
+                                            >
+                                              In Progress
+                                            </button>
+                                            
+                                            <button
+                                              onClick={() => handleTaskStatusChange(task._id, 'ready_for_review')}
+                                              disabled={task.status === 'ready_for_review'}
+                                              className={`px-3 py-1 text-sm rounded ${
+                                                task.status === 'ready_for_review'
+                                                  ? 'bg-orange-100 text-orange-800 cursor-not-allowed'
+                                                  : 'bg-orange-600 text-white hover:bg-orange-700'
+                                              }`}
+                                            >
+                                              Ready for Review
+                                            </button>
+                                            
+                                            <button
+                                              onClick={() => handleTaskStatusChange(task._id, 'completed')}
+                                              disabled={task.status === 'completed'}
+                                              className={`px-3 py-1 text-sm rounded ${
+                                                task.status === 'completed'
+                                                  ? 'bg-green-100 text-green-800 cursor-not-allowed'
+                                                  : 'bg-green-600 text-white hover:bg-green-700'
+                                              }`}
+                                            >
+                                              Complete
+                                            </button>
+                                          </div>
+                                        </div>
+                                        
                                         {/* Uploaded Documents Section */}
                                         <div className="mt-3">
                                           <div className="flex items-center space-x-2 mb-2">
@@ -478,10 +617,14 @@ const ClientPortal: React.FC = () => {
                                               ? 'bg-green-100 text-green-800' 
                                               : task.status === 'in_progress'
                                               ? 'bg-blue-100 text-blue-800'
+                                              : task.status === 'ready_for_review'
+                                              ? 'bg-orange-100 text-orange-800'
                                               : 'bg-yellow-100 text-yellow-800'
                                           }`}>
                                             {task.status === 'completed' ? 'Completed' : 
-                                             task.status === 'in_progress' ? 'In Progress' : 'Pending'}
+                                             task.status === 'in_progress' ? 'In Progress' : 
+                                             task.status === 'ready_for_review' ? 'Ready for Review' :
+                                             'Pending'}
                                           </span>
                                         </div>
                                       </div>

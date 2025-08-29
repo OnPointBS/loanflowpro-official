@@ -102,7 +102,7 @@ const Clients: React.FC = () => {
     email: '',
     phone: '',
     notes: '',
-    status: 'prospect' as 'active' | 'inactive' | 'prospect',
+    status: 'prospect' as 'active' | 'inactive' | 'prospect' | 'invited' | 'declined',
   });
   const [assignLoanTypeForm, setAssignLoanTypeForm] = useState({
     loanTypeId: '',
@@ -773,7 +773,7 @@ const Clients: React.FC = () => {
       if (aboveLoanType) {
         // Swap the order values
         await reorderLoanTypes({
-          workspaceId: workspace?._id || "" as any,
+          workspaceId: workspace?.id || "" as any,
           clientId: clientId as any,
           newOrder: [
             { clientLoanTypeId: clientLoanTypeId as any, newOrder: aboveLoanType.customOrder },
@@ -812,7 +812,7 @@ const Clients: React.FC = () => {
       if (belowLoanType) {
         // Swap the order values
         await reorderLoanTypes({
-          workspaceId: workspace?._id || "" as any,
+          workspaceId: workspace?.id || "" as any,
           clientId: clientId as any,
           newOrder: [
             { clientLoanTypeId: clientLoanTypeId as any, newOrder: belowLoanType.customOrder },
@@ -836,10 +836,12 @@ const Clients: React.FC = () => {
       'completed': 'bg-green-100 text-green-800 border-green-200',
       'overdue': 'bg-red-100 text-red-800 border-red-200',
       'skipped': 'bg-gray-100 text-gray-800 border-gray-200',
+      'ready_for_review': 'bg-orange-100 text-orange-800 border-orange-200',
     };
     return (
       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${colors[status as keyof typeof colors] || colors.pending}`}>
-        {status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1)}
+        {status === 'ready_for_review' ? 'Ready for Review' : 
+         status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1)}
       </span>
     );
   };
@@ -2063,6 +2065,7 @@ const Clients: React.FC = () => {
                               >
                                 <option value="pending">Pending</option>
                                 <option value="in_progress">In Progress</option>
+                                <option value="ready_for_review">Ready for Review</option>
                                 <option value="completed">Completed</option>
                                 <option value="overdue">Overdue</option>
                                 <option value="skipped">Skipped</option>
@@ -2144,6 +2147,10 @@ const Clients: React.FC = () => {
                         <div className="flex justify-between">
                           <span>In Progress:</span>
                           <span className="font-medium">{tasks.filter(t => t.status === 'in_progress').length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Ready for Review:</span>
+                          <span className="font-medium">{tasks.filter(t => t.status === 'ready_for_review').length}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Overdue:</span>

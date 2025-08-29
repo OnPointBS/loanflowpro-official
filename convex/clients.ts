@@ -76,7 +76,7 @@ export const update = mutation({
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
     notes: v.optional(v.string()),
-    status: v.optional(v.union(v.literal("active"), v.literal("inactive"), v.literal("prospect"))),
+    status: v.optional(v.union(v.literal("active"), v.literal("inactive"), v.literal("prospect"), v.literal("invited"), v.literal("declined"))),
   },
   handler: async (ctx, { clientId, ...updates }) => {
     const client = await ctx.db.get(clientId);

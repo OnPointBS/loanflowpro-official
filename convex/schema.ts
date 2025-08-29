@@ -188,7 +188,7 @@ export default defineSchema({
     attachmentsAllowed: v.boolean(),
     priority: v.union(v.literal("low"), v.literal("normal"), v.literal("high"), v.literal("urgent")),
     order: v.number(), // Custom order for this client
-    status: v.union(v.literal("pending"), v.literal("in_progress"), v.literal("completed"), v.literal("overdue"), v.literal("skipped")),
+    status: v.union(v.literal("pending"), v.literal("in_progress"), v.literal("completed"), v.literal("overdue"), v.literal("skipped"), v.literal("ready_for_review")),
     dueDate: v.optional(v.number()), // Calculated based on assignment date + dueInDays
     completedAt: v.optional(v.number()),
     assignedTo: v.optional(v.id("users")), // Specific user assigned (if applicable)

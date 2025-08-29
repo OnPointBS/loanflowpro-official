@@ -424,6 +424,7 @@ export const getClientTaskStats = query({
       completed: 0,
       overdue: 0,
       skipped: 0,
+      ready_for_review: 0,
       highPriority: 0,
       urgent: 0,
     };
@@ -558,7 +559,7 @@ export const updateClientTask = mutation({
       dueInDays: v.optional(v.number()),
       attachmentsAllowed: v.optional(v.boolean()),
       isRequired: v.optional(v.boolean()),
-      status: v.optional(v.union(v.literal("pending"), v.literal("in_progress"), v.literal("completed"), v.literal("overdue"), v.literal("skipped"))),
+      status: v.optional(v.union(v.literal("pending"), v.literal("in_progress"), v.literal("completed"), v.literal("overdue"), v.literal("skipped"), v.literal("ready_for_review"))),
       clientNotes: v.optional(v.string()),
     }),
   },
