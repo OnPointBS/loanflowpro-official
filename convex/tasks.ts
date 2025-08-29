@@ -518,54 +518,40 @@ export const listByClient = query({
 
     if (!client) return [];
 
-    // Get tasks for this client (both from loan files and client-specific tasks)
-    const loanFileTasks = await ctx.db
-      .query("tasks")
-      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("assigneeRole"), "CLIENT"),
-          q.eq(q.field("assigneeUserId"), clientId)
-        )
-      )
+    // Get all loan files for this client
+    const clientLoanFiles = await ctx.db
+      .query("loanFiles")
+      .withIndex("by_client", (q) => q.eq("clientId", client._id))
       .collect();
 
-    const clientTasks = await ctx.db
-      .query("clientTasks")
-      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("clientId"), client._id),
-          q.eq(q.field("assigneeRole"), "CLIENT")
-        )
-      )
-      .collect();
+    // Get tasks from all loan files associated with this client
+    const clientTasks = [];
+    
+    for (const loanFile of clientLoanFiles) {
+      const tasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_loan_file", (q) => q.eq("loanFileId", loanFile._id))
+        .filter((q) => q.eq(q.field("assigneeRole"), "CLIENT"))
+        .collect();
+      
+      clientTasks.push(...tasks);
+    }
 
-    // Combine and format tasks
-    const allTasks = [
-      ...loanFileTasks.map(task => ({
-        _id: task._id,
-        title: task.title,
-        description: task.instructions,
-        status: task.status,
-        priority: task.priority,
-        dueAt: task.dueDate,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-      })),
-      ...clientTasks.map(task => ({
-        _id: task._id,
-        title: task.title,
-        description: task.instructions,
-        status: task.status,
-        priority: task.priority,
-        dueAt: task.dueDate || (task.createdAt + (task.dueInDays * 24 * 60 * 60 * 1000)),
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
-      }))
-    ];
+    // Format tasks for display
+    const formattedTasks = clientTasks.map(task => ({
+      _id: task._id,
+      title: task.title,
+      description: task.description || task.instructions,
+      status: task.status,
+      priority: task.priority,
+      dueAt: task.dueDate,
+      createdAt: task.createdAt,
+      updatedAt: task.updatedAt,
+      loanFileId: task.loanFileId,
+      clientNote: task.clientNote,
+    }));
 
-    return allTasks.sort((a, b) => (b.dueAt || 0) - (a.dueAt || 0));
+    return formattedTasks.sort((a, b) => (b.dueAt || 0) - (a.dueAt || 0));
   },
 });
 

@@ -169,12 +169,13 @@ const ClientPortal: React.FC = () => {
     
     setUploading(true);
     try {
-      // In a real implementation, you'd upload to a file service first
-      // For now, we'll simulate the upload
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Check if we have a loan file to associate with
+      let loanFileId: any = undefined;
+      if (displayLoanFiles.length > 0) {
+        loanFileId = displayLoanFiles[0]._id;
+      }
       
-      const loanFileId = displayLoanFiles[0]?._id || 'placeholder-loan-file' as any;
-      
+      // Upload the document
       await uploadDocument({
         workspaceId: workspace.id,
         loanFileId: loanFileId,
@@ -186,8 +187,10 @@ const ClientPortal: React.FC = () => {
       });
       
       setSelectedFile(null);
+      alert('Document uploaded successfully!');
     } catch (error) {
       console.error('Failed to upload document:', error);
+      alert('Failed to upload document. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -548,10 +551,11 @@ const ClientPortal: React.FC = () => {
                           <h3 className="font-semibold text-gunmetal">{task.title}</h3>
                           <p className="text-sm text-gunmetal-light mb-2">{task.description}</p>
                           <div className="flex items-center space-x-4 text-sm">
-                            <span className="text-gunmetal-light">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                            <span className="text-gunmetal-light">Due: {new Date(task.dueAt).toLocaleDateString()}</span>
                             <span className={`px-2 py-1 rounded text-xs ${
                               task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              task.priority === 'urgent' ? 'bg-red-200 text-red-900' :
+                              task.priority === 'normal' ? 'bg-blue-100 text-blue-800' :
                               'bg-green-100 text-green-800'
                             }`}>
                               {task.priority} priority
