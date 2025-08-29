@@ -568,3 +568,19 @@ export const listByClient = query({
     return allTasks.sort((a, b) => (b.dueAt || 0) - (a.dueAt || 0));
   },
 });
+
+// List all tasks in a workspace
+export const listByWorkspace = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    const tasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .order("desc")
+      .collect();
+
+    return tasks;
+  },
+});

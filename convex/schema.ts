@@ -258,19 +258,16 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_document", ["documentId"]).index("by_status", ["status"]),
 
-  // Communication system
+  // Client-advisor messaging
   messages: defineTable({
     workspaceId: v.id("workspaces"),
-    loanFileId: v.optional(v.id("loanFiles")),
     senderId: v.id("users"),
-    recipientId: v.string(), // "advisor" or specific user ID
+    recipientId: v.id("users"),
     content: v.string(),
-    type: v.union(v.literal("client_to_advisor"), v.literal("advisor_to_client")),
-    status: v.union(v.literal("sent"), v.literal("read")),
-    attachments: v.optional(v.array(v.id("documents"))),
-    createdAt: v.number(),
+    type: v.union(v.literal("client_to_advisor"), v.literal("advisor_to_client"), v.literal("partner_to_advisor"), v.literal("advisor_to_partner")),
     readAt: v.optional(v.number()),
-  }).index("by_workspace", ["workspaceId"]).index("by_loan_file", ["loanFileId"]).index("by_sender", ["senderId"]).index("by_recipient", ["recipientId"]),
+    createdAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]).index("by_sender", ["senderId"]).index("by_recipient", ["recipientId"]),
 
   // Subscription and billing
   subscriptions: defineTable({

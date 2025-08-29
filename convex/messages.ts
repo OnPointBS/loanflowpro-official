@@ -1,14 +1,13 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// Send a message
 export const sendMessage = mutation({
   args: {
     workspaceId: v.id("workspaces"),
     senderId: v.id("users"),
-    recipientId: v.string(), // "advisor" or specific user ID
+    recipientId: v.id("users"),
     content: v.string(),
-    type: v.union(v.literal("client_to_advisor"), v.literal("advisor_to_client")),
+    type: v.union(v.literal("client_to_advisor"), v.literal("advisor_to_client"), v.literal("partner_to_advisor"), v.literal("advisor_to_partner")),
   },
   handler: async (ctx, args) => {
     const messageId = await ctx.db.insert("messages", {
@@ -17,20 +16,18 @@ export const sendMessage = mutation({
       recipientId: args.recipientId,
       content: args.content,
       type: args.type,
-      status: "sent",
       createdAt: Date.now(),
-      readAt: undefined,
     });
 
     return messageId;
   },
 });
 
-// Get messages for a user
 export const getMessages = query({
   args: {
     workspaceId: v.id("workspaces"),
-    userId: v.id("users"),
+    userId1: v.id("users"),
+    userId2: v.id("users"),
   },
   handler: async (ctx, args) => {
     const messages = await ctx.db
@@ -38,18 +35,17 @@ export const getMessages = query({
       .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
       .filter((q) => 
         q.or(
-          q.eq(q.field("senderId"), args.userId),
-          q.eq(q.field("recipientId"), args.userId)
+          q.and(q.eq(q.field("senderId"), args.userId1), q.eq(q.field("recipientId"), args.userId2)),
+          q.and(q.eq(q.field("senderId"), args.userId2), q.eq(q.field("recipientId"), args.userId1))
         )
       )
-      .order("desc")
+      .order("asc")
       .collect();
 
     return messages;
   },
 });
 
-// Mark message as read
 export const markAsRead = mutation({
   args: {
     messageId: v.id("messages"),
@@ -57,7 +53,6 @@ export const markAsRead = mutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.messageId, {
       readAt: Date.now(),
-      status: "read",
     });
   },
 });
