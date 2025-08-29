@@ -269,6 +269,23 @@ export const declinePartnerInvite = mutation({
   },
 });
 
+// Get partner by email
+export const getPartnerByEmail = query({
+  args: { 
+    workspaceId: v.id("workspaces"),
+    email: v.string()
+  },
+  handler: async (ctx, { workspaceId, email }) => {
+    const partner = await ctx.db
+      .query("partners")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => q.eq(q.field("email"), email))
+      .first();
+
+    return partner;
+  },
+});
+
 // Get partner permissions
 export const getPartnerPermissions = query({
   args: { 

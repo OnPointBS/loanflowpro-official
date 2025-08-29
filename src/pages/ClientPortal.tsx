@@ -57,6 +57,12 @@ const ClientPortal: React.FC = () => {
     clientId: user?._id || '',
   }) || [];
 
+  // Get client information for preview mode
+  const clientInfo = useQuery(api.clients.getClientByEmail, {
+    workspaceId: workspace?.id || '',
+    email: user?.email || '',
+  });
+
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
   const uploadDocument = useMutation(api.documents.uploadDocument);
@@ -215,6 +221,14 @@ const ClientPortal: React.FC = () => {
               <div className="text-right">
                 <p className="text-sm text-gunmetal-light">Workspace</p>
                 <p className="font-medium text-gunmetal">{workspace.name}</p>
+                {isPreviewMode && (
+                  <div className="mt-2 p-2 bg-brand-orange/10 rounded border border-brand-orange/20">
+                    <p className="text-xs text-brand-orange font-medium">Previewing Client</p>
+                    <p className="text-xs text-brand-orange">
+                      {clientInfo?.name || 'No client data'}
+                    </p>
+                  </div>
+                )}
                 {isPreviewMode && (
                   <p className="text-xs text-brand-orange bg-brand-orange/10 px-2 py-1 rounded mt-1">
                     Preview Mode

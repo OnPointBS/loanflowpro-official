@@ -117,6 +117,23 @@ export const remove = mutation({
   },
 });
 
+// Get client by email
+export const getClientByEmail = query({
+  args: { 
+    workspaceId: v.id("workspaces"),
+    email: v.string()
+  },
+  handler: async (ctx, { workspaceId, email }) => {
+    const client = await ctx.db
+      .query("clients")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => q.eq(q.field("email"), email))
+      .first();
+
+    return client;
+  },
+});
+
 // Get client with loan types and tasks
 export const getClientWithDetails = query({
   args: { 

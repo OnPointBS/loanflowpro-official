@@ -62,6 +62,12 @@ const PartnerPortal: React.FC = () => {
     workspaceId: workspace?.id || '',
   }) || [];
 
+  // Get partner information for preview mode
+  const partnerInfo = useQuery(api.partners.getPartnerByEmail, {
+    workspaceId: workspace?.id || '',
+    email: user?.email || '',
+  });
+
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
   const updateTask = useMutation(api.tasks.updateTask);
@@ -191,6 +197,14 @@ const PartnerPortal: React.FC = () => {
               <div className="text-right">
                 <p className="text-sm text-gunmetal-light">Workspace</p>
                 <p className="font-medium text-gunmetal">{workspace.name}</p>
+                {isPreviewMode && (
+                  <div className="mt-2 p-2 bg-blue-100 rounded border border-blue-200">
+                    <p className="text-xs text-blue-800 font-medium">Previewing Partner</p>
+                    <p className="text-xs text-blue-800">
+                      {partnerInfo?.name || 'No partner data'}
+                    </p>
+                  </div>
+                )}
                 {isPreviewMode && (
                   <p className="text-xs text-brand-orange bg-brand-orange/10 px-2 py-1 rounded mt-1">
                     Preview Mode
