@@ -133,8 +133,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   if (demoUser) {
     console.log('🔍 [DEBUG] AuthProvider - Rendering with demo user:', demoUser);
     
-    // Get the real demo workspace ID from the demo data
-    const demoWorkspaceId = 'm177784ytkc1n475ztft15enth7pg30s';
+    // Get the real demo workspace ID from the demo data (production workspace ID)
+    const demoWorkspaceId = 'm170269p93h8dsrs1911drembh7pj6a4';
     
     const value: AuthContextType = {
       isAuthenticated: true,

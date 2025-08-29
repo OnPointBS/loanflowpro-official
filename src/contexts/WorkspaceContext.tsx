@@ -63,9 +63,9 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         
         if (parsed.isDemo) {
           console.log('🔍 [DEBUG] - Setting demo workspace');
-          // Provide demo workspace data with real Convex ID
+          // Provide demo workspace data with real Convex ID from production
           const demoWorkspace = {
-            id: 'm177784ytkc1n475ztft15enth7pg30s',
+            id: 'm170269p93h8dsrs1911drembh7pj6a4', // This is the actual workspace ID from production seeding
             name: 'Demo Workspace',
             status: 'active' as const
           };
