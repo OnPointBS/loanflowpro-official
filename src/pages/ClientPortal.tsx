@@ -31,11 +31,11 @@ const ClientPortal: React.FC = () => {
   const [taskNote, setTaskNote] = useState('');
   const [editingTask, setEditingTask] = useState<string | null>(null);
 
-  // Get client permissions and data
-  const clientPermissions = useQuery(api.clientInvites.getClientPermissions, {
+  // Get client permissions and data (only for clients)
+  const clientPermissions = user?.role === 'CLIENT' ? useQuery(api.clientInvites.getClientPermissions, {
     workspaceId: workspace?.id || '',
     userId: user?._id || '',
-  });
+  }) : null;
 
   // Get client's loan files (if they have permission)
   const loanFiles = useQuery(api.loanFiles.listByClient, {
