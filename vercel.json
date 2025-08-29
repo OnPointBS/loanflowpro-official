@@ -12,12 +12,12 @@
       "destination": "/index.html"
     }
   ],
-  "env": {
-    "VITE_CONVEX_URL": "https://marvelous-cheetah-331.convex.cloud",
-    "CONVEX_DEPLOYMENT": "dev:marvelous-cheetah-331",
-    "NODE_ENV": "production",
-    "VITE_APP_ENV": "production",
-    "RESEND_API_KEY": "re_bamgYwny_NZEE9FRVdEaozPtWVvaaRW2WSITE_URL",
-    "SITE_URL": "https://loanflowpro.com"
-  }
+      "env": {
+      "VITE_CONVEX_URL": "https://marvelous-cheetah-331.convex.cloud",
+      "CONVEX_DEPLOYMENT": "dev:marvelous-cheetah-331",
+      "NODE_ENV": "production",
+      "VITE_APP_ENV": "production",
+      "RESEND_API_KEY": "re_bamgYwny_NZEE9FRVdEaozPtWVvaaRW2W",
+      "SITE_URL": "https://loanflowpro.com"
+    }
 }
