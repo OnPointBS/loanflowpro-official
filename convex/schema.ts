@@ -74,6 +74,8 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_workspace", ["workspaceId"]).index("by_email", ["clientEmail"]).index("by_status", ["status"]),
 
+
+
   // Client management
   clients: defineTable({
     workspaceId: v.id("workspaces"),
@@ -183,6 +185,7 @@ export default defineSchema({
     loanFileId: v.id("loanFiles"),
     taskTemplateId: v.optional(v.id("taskTemplates")),
     title: v.string(),
+    description: v.string(),
     assigneeUserId: v.optional(v.id("users")),
     assigneeRole: v.union(v.literal("ADVISOR"), v.literal("STAFF"), v.literal("CLIENT")),
     instructions: v.string(),
@@ -190,6 +193,7 @@ export default defineSchema({
     priority: v.union(v.literal("low"), v.literal("normal"), v.literal("high"), v.literal("urgent")),
     dueDate: v.number(),
     completedAt: v.optional(v.number()),
+    clientNote: v.optional(v.string()),
     order: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -201,14 +205,15 @@ export default defineSchema({
     loanFileId: v.optional(v.id("loanFiles")),
     clientId: v.optional(v.id("clients")),
     fileName: v.string(),
-    mimeType: v.string(),
+    fileType: v.string(),
     fileSize: v.number(),
-    storageId: v.id("_storage"),
-    status: v.union(v.literal("uploading"), v.literal("processing"), v.literal("ready"), v.literal("error")),
+    storageId: v.optional(v.id("_storage")),
+    status: v.union(v.literal("uploading"), v.literal("pending_review"), v.literal("approved"), v.literal("rejected"), v.literal("processing"), v.literal("ready"), v.literal("error")),
     ocrText: v.optional(v.string()),
     ocrConfidence: v.optional(v.number()),
     pageCount: v.optional(v.number()),
     uploadedBy: v.id("users"),
+    uploadedAt: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]).index("by_loan_file", ["loanFileId"]).index("by_client", ["clientId"]),
@@ -227,12 +232,15 @@ export default defineSchema({
   messages: defineTable({
     workspaceId: v.id("workspaces"),
     loanFileId: v.optional(v.id("loanFiles")),
-    senderUserId: v.id("users"),
-    senderRole: v.union(v.literal("ADVISOR"), v.literal("STAFF"), v.literal("CLIENT")),
-    body: v.string(),
+    senderId: v.id("users"),
+    recipientId: v.string(), // "advisor" or specific user ID
+    content: v.string(),
+    type: v.union(v.literal("client_to_advisor"), v.literal("advisor_to_client")),
+    status: v.union(v.literal("sent"), v.literal("read")),
     attachments: v.optional(v.array(v.id("documents"))),
     createdAt: v.number(),
-  }).index("by_workspace", ["workspaceId"]).index("by_loan_file", ["loanFileId"]).index("by_sender", ["senderUserId"]),
+    readAt: v.optional(v.number()),
+  }).index("by_workspace", ["workspaceId"]).index("by_loan_file", ["loanFileId"]).index("by_sender", ["senderId"]).index("by_recipient", ["recipientId"]),
 
   // Subscription and billing
   subscriptions: defineTable({

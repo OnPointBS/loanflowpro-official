@@ -241,3 +241,34 @@ export const getDownloadUrl = action({
     return url;
   },
 });
+
+// Upload a new document
+export const uploadDocument = mutation({
+  args: {
+    workspaceId: v.id("workspaces"),
+    loanFileId: v.optional(v.id("loanFiles")),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+    uploadedBy: v.id("users"),
+    status: v.union(v.literal("uploading"), v.literal("pending_review"), v.literal("approved"), v.literal("rejected")),
+  },
+  handler: async (ctx, args) => {
+    // In a real implementation, you'd upload to a file service first
+    // For now, we'll create the document record
+    const documentId = await ctx.db.insert("documents", {
+      workspaceId: args.workspaceId,
+      loanFileId: args.loanFileId,
+      fileName: args.fileName,
+      fileType: args.fileType,
+      fileSize: args.fileSize,
+      status: args.status,
+      uploadedBy: args.uploadedBy,
+      uploadedAt: Date.now(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return documentId;
+  },
+});

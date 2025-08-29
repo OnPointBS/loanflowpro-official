@@ -419,6 +419,31 @@ export const addTaskNote = mutation({
   },
 });
 
+// Update a task
+export const updateTask = mutation({
+  args: {
+    taskId: v.id("tasks"),
+    updates: v.object({
+      status: v.optional(v.union(v.literal("pending"), v.literal("in_progress"), v.literal("completed"), v.literal("overdue"))),
+      completedAt: v.optional(v.number()),
+      clientNote: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const task = await ctx.db.get(args.taskId);
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    await ctx.db.patch(args.taskId, {
+      ...args.updates,
+      updatedAt: Date.now(),
+    });
+
+    return args.taskId;
+  },
+});
+
 // Delete a task
 export const deleteTask = mutation({
   args: { taskId: v.id("tasks") },

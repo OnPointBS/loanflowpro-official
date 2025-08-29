@@ -1,80 +1,63 @@
-import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
-// Create a new message
-export const create = mutation({
+// Send a message
+export const sendMessage = mutation({
   args: {
     workspaceId: v.id("workspaces"),
-    loanFileId: v.optional(v.id("loanFiles")),
-    senderUserId: v.id("users"),
-    senderRole: v.union(v.literal("ADVISOR"), v.literal("STAFF"), v.literal("CLIENT")),
-    body: v.string(),
-    attachments: v.optional(v.array(v.id("documents"))),
+    senderId: v.id("users"),
+    recipientId: v.string(), // "advisor" or specific user ID
+    content: v.string(),
+    type: v.union(v.literal("client_to_advisor"), v.literal("advisor_to_client")),
   },
   handler: async (ctx, args) => {
     const messageId = await ctx.db.insert("messages", {
-      ...args,
+      workspaceId: args.workspaceId,
+      senderId: args.senderId,
+      recipientId: args.recipientId,
+      content: args.content,
+      type: args.type,
+      status: "sent",
       createdAt: Date.now(),
+      readAt: null,
     });
 
     return messageId;
   },
 });
 
-// Get a message by ID
-export const get = query({
-  args: { messageId: v.id("messages") },
-  handler: async (ctx, { messageId }) => {
-    return await ctx.db.get(messageId);
+// Get messages for a user
+export const getMessages = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
   },
-});
-
-// List messages by workspace
-export const listByWorkspace = query({
-  args: { workspaceId: v.id("workspaces") },
-  handler: async (ctx, { workspaceId }) => {
-    return await ctx.db
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
       .query("messages")
-      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .filter((q) => 
+        q.or(
+          q.eq(q.field("senderId"), args.userId),
+          q.eq(q.field("recipientId"), args.userId)
+        )
+      )
       .order("desc")
       .collect();
+
+    return messages;
   },
 });
 
-// List messages by loan file
-export const listByLoanFile = query({
-  args: { loanFileId: v.id("loanFiles") },
-  handler: async (ctx, { loanFileId }) => {
-    return await ctx.db
-      .query("messages")
-      .withIndex("by_loan_file", (q) => q.eq("loanFileId", loanFileId))
-      .order("asc")
-      .collect();
+// Mark message as read
+export const markAsRead = mutation({
+  args: {
+    messageId: v.id("messages"),
   },
-});
-
-// List messages by sender
-export const listBySender = query({
-  args: { senderUserId: v.id("users") },
-  handler: async (ctx, { senderUserId }) => {
-    return await ctx.db
-      .query("messages")
-      .withIndex("by_sender", (q) => q.eq("senderUserId", senderUserId))
-      .order("desc")
-      .collect();
-  },
-});
-
-// Delete a message
-export const remove = mutation({
-  args: { messageId: v.id("messages") },
-  handler: async (ctx, { messageId }) => {
-    const message = await ctx.db.get(messageId);
-    if (!message) {
-      throw new Error("Message not found");
-    }
-
-    await ctx.db.delete(messageId);
-    return messageId;
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.messageId, {
+      readAt: Date.now(),
+      status: "read",
+    });
   },
 });

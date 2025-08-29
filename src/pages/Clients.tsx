@@ -4,7 +4,7 @@ import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Eye } from 'lucide-react';
 import ClientInviteManager from '../components/ClientInviteManager';
 
 interface Client {
@@ -823,13 +823,20 @@ const Clients: React.FC = () => {
               >
                 Assign Loan Type
               </button>
-              <button
-                onClick={() => setIsClientInviteModalOpen(true)}
-                className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30 flex items-center space-x-2"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Invite to Portal</span>
-              </button>
+                        <button
+            onClick={() => setIsClientInviteModalOpen(true)}
+            className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30 flex items-center space-x-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Invite to Portal</span>
+          </button>
+          <button
+            onClick={() => window.open('/client', '_blank')}
+            className="bg-brand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-orange/90 transition-all duration-200 flex items-center space-x-2"
+          >
+            <Eye className="w-4 h-4" />
+            <span>View as Client</span>
+          </button>
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="bg-brand-orange hover:bg-brand-orange-dark text-white px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl font-semibold"
