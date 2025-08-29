@@ -44,6 +44,8 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
   const [currentMembership, setCurrentMembership] = useState<Membership | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+
 
   useEffect(() => {
     console.log('🔍 [DEBUG] WorkspaceContext - useEffect triggered');
@@ -63,14 +65,15 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         
         if (parsed.isDemo) {
           console.log('🔍 [DEBUG] - Setting demo workspace');
-          // Provide demo workspace data with real Convex ID from production
-          const demoWorkspace = {
-            id: 'm170269p93h8dsrs1911drembh7pj6a4', // This is the actual workspace ID from production seeding
+          
+          // Provide demo workspace data with current production workspace ID
+          const workspaceData = {
+            id: 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2', // Current production workspace ID
             name: 'Demo Workspace',
             status: 'active' as const
           };
-          console.log('🔍 [DEBUG] - Demo workspace object:', demoWorkspace);
-          setCurrentWorkspace(demoWorkspace);
+          console.log('🔍 [DEBUG] - Demo workspace object:', workspaceData);
+          setCurrentWorkspace(workspaceData);
           
           // Set demo membership
           const demoMembership = {

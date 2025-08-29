@@ -39,6 +39,17 @@ export const getByName = query({
   },
 });
 
+// Find demo workspace (helper function)
+export const findDemoWorkspace = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("workspaces")
+      .withIndex("by_name", (q) => q.eq("name", "Demo Financial Advisory"))
+      .first();
+  },
+});
+
 // Get workspaces by user ID (owner or member)
 export const listByUser = query({
   args: { userId: v.id("users") },
