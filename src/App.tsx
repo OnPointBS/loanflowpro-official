@@ -44,8 +44,22 @@ import ClientPortal from './pages/ClientPortal';
 import PartnerPortal from './pages/PartnerPortal';
 import { api } from '../convex/_generated/api';
 import './App.css';
+import ErrorBoundary from './components/ErrorBoundary';
+import ConvexErrorBoundary from './components/ConvexErrorBoundary';
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL || 'https://loanflowpro.convex.cloud');
+// Initialize Convex client with error handling
+const convexUrl = import.meta.env.VITE_CONVEX_URL || 'https://loanflowpro.convex.cloud';
+console.log('Initializing Convex client with URL:', convexUrl);
+
+let convex: ConvexReactClient;
+try {
+  convex = new ConvexReactClient(convexUrl);
+  console.log('Convex client initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize Convex client:', error);
+  // Fallback to a default URL if the main one fails
+  convex = new ConvexReactClient('https://loanflowpro.convex.cloud');
+}
 
 // Simple VerifyEmail component to handle magic link verification (NEW)
 const VerifyEmail = () => {
@@ -172,13 +186,15 @@ const VerifyEmail = () => {
 
 function App() {
   return (
-    <HelmetProvider>
-      <ConvexProvider client={convex}>
-        <ConvexAuthProvider client={convex}>
-          <Router>
-            <AuthProvider>
-              <WorkspaceProvider>
-              <Routes>
+    <ErrorBoundary>
+      <HelmetProvider>
+        <ConvexErrorBoundary>
+          <ConvexProvider client={convex}>
+            <ConvexAuthProvider client={convex}>
+            <Router>
+              <AuthProvider>
+                <WorkspaceProvider>
+                <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/about" element={<About />} />
@@ -239,12 +255,14 @@ function App() {
                 {/* Default redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
-            </WorkspaceProvider>
-          </AuthProvider>
-        </Router>
-      </ConvexAuthProvider>
-    </ConvexProvider>
+                </WorkspaceProvider>
+              </AuthProvider>
+            </Router>
+                      </ConvexAuthProvider>
+          </ConvexProvider>
+        </ConvexErrorBoundary>
       </HelmetProvider>
+    </ErrorBoundary>
   );
 }
 
