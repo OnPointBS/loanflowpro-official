@@ -9,9 +9,9 @@ const Analytics: React.FC = () => {
   const [selectedLoanType, setSelectedLoanType] = useState('all');
 
   // Fetch data from Convex
-  const clients = useQuery(api.clients.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const loanFiles = useQuery(api.loanFiles.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const loanTypes = useQuery(api.loanTypes.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
+  const clients = useQuery(api.clients.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const loanFiles = useQuery(api.loanFiles.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const loanTypes = useQuery(api.loanTypes.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
 
   // Don't render until workspace is loaded
   if (!workspace?.id) {

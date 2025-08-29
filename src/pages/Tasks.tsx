@@ -54,7 +54,7 @@ const Tasks: React.FC = () => {
     workspace?.id ? { workspaceId: workspace.id as Id<"workspaces"> } : "skip"
   );
   const loanTypes = useQuery(api.loanTypes.listByWorkspace, { 
-    workspaceId: workspace?.id as Id<"workspaces"> || "" as any 
+            workspaceId: workspace?.id as Id<"workspaces"> 
   }) || [];
 
   // Get loan types for a specific task template (for editing)

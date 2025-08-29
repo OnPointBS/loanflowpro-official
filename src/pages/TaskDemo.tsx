@@ -11,9 +11,9 @@ const TaskDemo: React.FC = () => {
   const [result, setResult] = useState<any>(null);
 
   // Fetch data
-  const clients = useQuery(api.clients.listByWorkspace, { workspaceId: workspace?._id || "" }) || [];
-  const loanTypes = useQuery(api.loanTypes.listByWorkspace, { workspaceId: workspace?._id || "" }) || [];
-  const tasks = useQuery(api.tasks.getTasksByWorkspace, { workspaceId: workspace?._id || "" }) || [];
+  const clients = useQuery(api.clients.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const loanTypes = useQuery(api.loanTypes.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const tasks = useQuery(api.tasks.getTasksByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
 
   // Mutations
   const createLoanFile = useMutation(api.loanFiles.createFromLoanType);

@@ -16,17 +16,17 @@ const Dashboard: React.FC = () => {
   // Real Convex queries for dashboard data
   const dashboardStats = useQuery(
     api.dashboard.getDashboardStats, 
-    { workspaceId: (workspace?.id || "placeholder") as Id<"workspaces"> }
+    workspace?.id ? { workspaceId: workspace.id as Id<"workspaces"> } : "skip"
   );
   
   const recentActivity = useQuery(
     api.dashboard.getRecentActivity, 
-    { workspaceId: (workspace?.id || "placeholder") as Id<"workspaces"> }
+    workspace?.id ? { workspaceId: workspace.id as Id<"workspaces"> } : "skip"
   );
   
   const todaysTasks = useQuery(
     api.dashboard.getTodaysTasks, 
-    { workspaceId: (workspace?.id || "placeholder") as Id<"workspaces"> }
+    workspace?.id ? { workspaceId: workspace.id as Id<"workspaces"> } : "skip"
   );
 
   // Animation effect

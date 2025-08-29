@@ -124,13 +124,13 @@ const LoanTypes: React.FC = () => {
   });
 
   // Fetch data
-  const loanTypes = useQuery(api.loanTypes.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const clients = useQuery(api.clients.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const users = useQuery(api.workspaceMembers.getByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const loanFiles = useQuery(api.loanFiles.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const clientLoanTypes = useQuery(api.clientLoanTypes.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const clientTasks = useQuery(api.clientLoanTypes.listClientTasksByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
-  const taskTemplates = useQuery(api.taskTemplates.listByWorkspace, { workspaceId: workspace?.id || "" as any }) || [];
+  const loanTypes = useQuery(api.loanTypes.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const clients = useQuery(api.clients.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const users = useQuery(api.workspaceMembers.getByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const loanFiles = useQuery(api.loanFiles.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const clientLoanTypes = useQuery(api.clientLoanTypes.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const clientTasks = useQuery(api.clientLoanTypes.listClientTasksByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
+  const taskTemplates = useQuery(api.taskTemplates.listByWorkspace, workspace?.id ? { workspaceId: workspace.id as any } : "skip") || [];
   
   // Get task templates associated with the currently editing loan type
   const associatedTaskTemplates = useQuery(
