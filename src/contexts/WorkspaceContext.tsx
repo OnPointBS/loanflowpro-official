@@ -100,21 +100,30 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       }
     }
 
-    // Priority 2: Check for demo user in localStorage AND useAuth workspace
+    // Priority 2: Check for demo user in localStorage (can work without useAuth workspace)
     const storedDemoUser = localStorage.getItem('demoUser');
-    if (storedDemoUser && user && workspace) {
+    if (storedDemoUser) {
       try {
         const parsed = JSON.parse(storedDemoUser);
-        if (parsed.isAuthenticated && parsed.isDemo && workspace) {
-          console.log('🔍 [DEBUG] - Setting demo user workspace from useAuth:', workspace);
-          setCurrentWorkspace(workspace);
+        if (parsed.isAuthenticated && parsed.isDemo && parsed.workspaceId) {
+          console.log('🔍 [DEBUG] - Setting demo user workspace from localStorage:', parsed.workspaceId);
+          
+          // Create demo workspace from stored workspaceId
+          const demoWorkspace = {
+            id: parsed.workspaceId,
+            name: 'Demo Workspace',
+            status: 'active' as const,
+            createdAt: Date.now(),
+          };
+          
+          setCurrentWorkspace(demoWorkspace);
           
           const demoMembership = {
             role: 'ADVISOR' as const,
             status: 'active' as const,
             joinedAt: Date.now(),
             permissions: ['Full Access'],
-            workspaceId: workspace.id,
+            workspaceId: parsed.workspaceId,
             userId: parsed._id,
           };
           
