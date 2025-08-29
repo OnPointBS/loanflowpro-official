@@ -4,7 +4,8 @@ import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
-import { UserPlus, Eye, Users, Building, Filter, Settings, EyeOff } from 'lucide-react';
+import { UserPlus, Eye, Users, Building, Filter, Settings, EyeOff, MessageSquare } from 'lucide-react';
+import Chat from '../components/Chat';
 
 import PartnerPermissionManager from '../components/PartnerPermissionManager';
 
@@ -82,6 +83,8 @@ const Clients: React.FC = () => {
   const [selectedTaskToEdit, setSelectedTaskToEdit] = useState<any>(null);
   const [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: 'client' | 'partner'; item: Client | Partner } | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [selectedChatClient, setSelectedChatClient] = useState<{ id: string; name: string } | null>(null);
   const [newTaskForm, setNewTaskForm] = useState({
     title: '',
     instructions: '',
@@ -1059,6 +1062,17 @@ const Clients: React.FC = () => {
     setItemToDelete(null);
   };
 
+  // Chat functions
+  const openChat = (clientId: string, clientName: string) => {
+    setSelectedChatClient({ id: clientId, name: clientName });
+    setIsChatOpen(true);
+  };
+
+  const closeChat = () => {
+    setIsChatOpen(false);
+    setSelectedChatClient(null);
+  };
+
   return (
     <div className="w-full px-4 md:px-6 lg:px-8 py-6 space-y-6">
       {/* Premium Header */}
@@ -1164,6 +1178,13 @@ const Clients: React.FC = () => {
           if (isClient(item)) {
             const clientLoanTypes = getClientLoanTypes(item._id);
             
+            // Get unread message count for this client
+            const unreadMessageCount = useQuery(api.messages.getUnreadMessageCountBetweenUsers, {
+              workspaceId: workspace?.id || "" as any,
+              userId1: user?._id || "" as any,
+              userId2: item._id as any,
+            }) || 0;
+            
             return (
               <div key={item._id} className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300">
                 {/* Client Header */}
@@ -1194,7 +1215,22 @@ const Clients: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  {getStatusBadge(item.status)}
+                  <div className="flex items-center space-x-2">
+                    {/* Chat Button with Notification Count */}
+                    <button
+                      onClick={() => openChat(item._id, item.name)}
+                      className="relative p-2 text-brand-orange hover:text-brand-orange-dark hover:bg-brand-orange/10 rounded-lg transition-all duration-200"
+                      title="Chat with client"
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      {unreadMessageCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                          {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                        </span>
+                      )}
+                    </button>
+                    {getStatusBadge(item.status)}
+                  </div>
                 </div>
 
                 {/* Client Details */}
@@ -1360,6 +1396,13 @@ const Clients: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => openChat(item._id, item.name)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium flex items-center space-x-2"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Chat {unreadMessageCount > 0 && `(${unreadMessageCount})`}</span>
+                  </button>
                   <button
                     onClick={() => openAssignLoanTypeModal(item)}
                     className="bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark transition-colors duration-200 text-sm font-medium"
@@ -3016,6 +3059,17 @@ const Clients: React.FC = () => {
             setIsPartnerPermissionModalOpen(false);
             setSelectedPartner(null);
           }}
+        />
+      )}
+
+      {/* Chat Component */}
+      {selectedChatClient && (
+        <Chat
+          workspaceId={workspace?.id || ""}
+          clientId={selectedChatClient.id}
+          clientName={selectedChatClient.name}
+          isOpen={isChatOpen}
+          onClose={closeChat}
         />
       )}
     </div>

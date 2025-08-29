@@ -18,6 +18,7 @@ import {
   Download,
   Edit3
 } from 'lucide-react';
+import Chat from '../components/Chat';
 
 const ClientPortal: React.FC = () => {
   const { user, workspace } = useAuth();
@@ -28,6 +29,7 @@ const ClientPortal: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
   const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   
   // Get client ID from URL
   const clientIdFromUrl = searchParams.get('clientId');
@@ -83,6 +85,15 @@ const ClientPortal: React.FC = () => {
     const owner = advisorInfo.find((member: any) => member.role === 'ADVISOR');
     return owner || advisorInfo[0];
   }, [advisorInfo]);
+
+  // Chat functions
+  const openChat = () => {
+    setIsChatOpen(true);
+  };
+
+  const closeChat = () => {
+    setIsChatOpen(false);
+  };
 
   // Process loan types with progress and tasks
   const processedLoanTypes = React.useMemo(() => {
@@ -284,6 +295,13 @@ const ClientPortal: React.FC = () => {
                   <p className="text-sm text-gunmetal-light">Your Advisor</p>
                   <p className="font-medium text-gunmetal">{primaryAdvisor.user?.name || 'Advisor'}</p>
                   <p className="text-sm text-brand-orange">{primaryAdvisor.user?.email || ''}</p>
+                  <button
+                    onClick={openChat}
+                    className="mt-2 bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark transition-colors duration-200 text-sm font-medium flex items-center space-x-2"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Chat with Advisor</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -662,6 +680,18 @@ const ClientPortal: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {/* Chat Component */}
+      {isChatOpen && primaryAdvisor && (
+        <Chat
+          workspaceId={workspace?.id || ""}
+          clientId={clientIdFromUrl || ""}
+          clientName={clientData?.name || "Client"}
+          isOpen={isChatOpen}
+          onClose={closeChat}
+          isClientPortal={true}
+        />
+      )}
     </>
   );
 };

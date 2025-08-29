@@ -338,6 +338,25 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Chat Notifications */}
+      <div className="px-6">
+        <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-3xl p-6 shadow-2xl">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-slate-900">💬 Chat Notifications</h3>
+            <button className="text-[#D4AF37] hover:text-[#B8941F] font-semibold transition-colors duration-200">
+              View All Messages →
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* This will be populated with actual chat notifications */}
+            <div className="text-center py-8 text-gray-500">
+              <p>No unread messages</p>
+              <p className="text-sm">All caught up!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Today's Tasks */}
       <div className="px-6">
         <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-3xl p-6 shadow-2xl">
