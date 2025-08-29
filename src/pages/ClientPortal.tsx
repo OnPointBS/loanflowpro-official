@@ -23,7 +23,9 @@ import {
   Check,
   X,
   Shield,
-  ClipboardList
+  ClipboardList,
+  Mail,
+  Phone
 } from 'lucide-react';
 
 const ClientPortal: React.FC = () => {
@@ -90,6 +92,23 @@ const ClientPortal: React.FC = () => {
     workspaceId: workspace?.id || '',
     email: user?.email || '',
   }) : null;
+
+  // Get advisor information for the current workspace
+  const advisorInfo = useQuery(api.workspaceMembers.getByWorkspace, {
+    workspaceId: workspace?.id || '',
+  }) || [];
+
+  // Find the primary advisor (workspace owner or first ADVISOR role)
+  const primaryAdvisor = React.useMemo(() => {
+    if (!advisorInfo.length) return null;
+    
+    // First try to find the workspace owner (ADVISOR role)
+    const owner = advisorInfo.find((member: any) => member.role === 'ADVISOR');
+    if (owner) return owner;
+    
+    // Fallback to first member
+    return advisorInfo[0];
+  }, [advisorInfo]);
 
   // Sample data for preview mode - dynamically generated based on real workspace data
   const sampleTasks = React.useMemo(() => {
@@ -409,40 +428,57 @@ const ClientPortal: React.FC = () => {
 
       <div className="min-h-screen bg-gradient-to-br from-brand-orange/5 to-gunmetal/5">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-brand-orange rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">LF</span>
-                </div>
-                <div>
-                  <h1 className="text-xl font-semibold text-gunmetal">Client Portal</h1>
-                  <p className="text-sm text-gunmetal-light">
-                    {isPreviewMode ? 'Preview Mode' : 'Welcome back, ' + user.name}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-gunmetal-light">Workspace</p>
-                <p className="font-medium text-gunmetal">{workspace.name}</p>
-                {isPreviewMode && (
-                  <div className="mt-2 p-2 bg-brand-orange/10 rounded border border-brand-orange/20">
-                    <p className="text-xs text-brand-orange font-medium">Previewing Client</p>
-                    <p className="text-xs text-brand-orange">
-                      {specificClient?.name || 'No client data'}
-                    </p>
-                  </div>
-                )}
-                {isPreviewMode && (
-                  <p className="text-xs text-brand-orange bg-brand-orange/10 px-2 py-1 rounded mt-1">
-                    Preview Mode
-                  </p>
-                )}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gunmetal">
+                {isPreviewMode ? `Client Portal - ${specificClient?.name || 'Preview Mode'}` : 'Client Portal'}
+              </h1>
+              <p className="text-gunmetal-light mt-1">
+                {isPreviewMode ? 'Preview Mode - See what your clients see' : 'Welcome back to your loan application portal'}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-gunmetal-light">Current Time</div>
+              <div className="text-lg font-semibold text-gunmetal">
+                {new Date().toLocaleTimeString()}
               </div>
             </div>
           </div>
-        </header>
+
+          {/* Advisor Information Section */}
+          {primaryAdvisor && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center text-lg font-bold">
+                    {primaryAdvisor.user?.name?.charAt(0)?.toUpperCase() || 'A'}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-blue-800">
+                      Your Financial Advisor
+                    </h3>
+                    <p className="text-blue-700 font-medium">
+                      {primaryAdvisor.user?.name || 'Advisor Name'}
+                    </p>
+                    <div className="flex items-center space-x-4 mt-1 text-sm text-blue-600">
+                      <span className="flex items-center space-x-1">
+                        <Mail className="w-4 h-4" />
+                        <span>{primaryAdvisor.user?.email || 'advisor@example.com'}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-blue-600 mb-1">Need Help?</div>
+                  <button className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium">
+                    Contact Advisor
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Navigation Tabs */}
         <nav className="bg-white border-b border-gray-200">
