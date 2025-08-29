@@ -15,7 +15,8 @@ import {
   Upload,
   MessageSquare,
   X,
-  Download
+  Download,
+  Edit3
 } from 'lucide-react';
 
 const ClientPortal: React.FC = () => {
@@ -439,9 +440,10 @@ const ClientPortal: React.FC = () => {
                                             {editingTask !== task._id && (
                                               <button
                                                 onClick={() => startEditingNote(task._id, task.clientNote || '')}
-                                                className="text-sm text-blue-600 hover:text-blue-800"
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                                title={task.clientNote ? 'Edit Note' : 'Add Note'}
                                               >
-                                                {task.clientNote ? 'Edit Note' : 'Add Note'}
+                                                <Edit3 className="h-4 w-4" />
                                               </button>
                                             )}
                                           </div>
@@ -455,21 +457,23 @@ const ClientPortal: React.FC = () => {
                                                 className="w-full p-2 border border-gray-300 rounded text-sm resize-none"
                                                 rows={3}
                                               />
-                                              <div className="flex space-x-2">
+                                              <div className="flex gap-2">
                                                 <button
                                                   onClick={() => handleTaskNoteUpdate(task._id)}
-                                                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                                                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                                                  title="Save Note"
                                                 >
-                                                  Save Note
+                                                  <CheckCircle className="h-4 w-4" />
                                                 </button>
                                                 <button
                                                   onClick={() => {
                                                     setEditingTask(null);
                                                     setTaskNotes(prev => ({ ...prev, [task._id]: '' }));
                                                   }}
-                                                  className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600"
+                                                  className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors"
+                                                  title="Cancel"
                                                 >
-                                                  Cancel
+                                                  <X className="h-4 w-4" />
                                                 </button>
                                               </div>
                                             </div>
@@ -488,48 +492,51 @@ const ClientPortal: React.FC = () => {
                                             <span className="text-sm font-medium text-gunmetal">Task Status</span>
                                           </div>
                                           
-                                          <div className="flex space-x-2">
+                                          <div className="flex gap-2">
                                             <button
                                               onClick={() => handleTaskStatusChange(task._id, 'in_progress')}
                                               disabled={task.status === 'in_progress'}
-                                              className={`px-3 py-1 text-sm rounded ${
+                                              className={`p-2 rounded-full transition-colors ${
                                                 task.status === 'in_progress'
                                                   ? 'bg-blue-100 text-blue-800 cursor-not-allowed'
-                                                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                                                  : 'text-blue-600 hover:bg-blue-50'
                                               }`}
+                                              title="Mark as In Progress"
                                             >
-                                              In Progress
+                                              <Clock className="h-4 w-4" />
                                             </button>
                                             
                                             <button
                                               onClick={() => handleTaskStatusChange(task._id, 'ready_for_review')}
                                               disabled={task.status === 'ready_for_review'}
-                                              className={`px-3 py-1 text-sm rounded ${
+                                              className={`p-2 rounded-full transition-colors ${
                                                 task.status === 'ready_for_review'
                                                   ? 'bg-orange-100 text-orange-800 cursor-not-allowed'
-                                                  : 'bg-orange-600 text-white hover:bg-orange-700'
+                                                  : 'text-orange-600 hover:bg-orange-50'
                                               }`}
+                                              title="Mark as Ready for Review"
                                             >
-                                              Ready for Review
+                                              <AlertCircle className="h-4 w-4" />
                                             </button>
                                             
                                             <button
                                               onClick={() => handleTaskStatusChange(task._id, 'completed')}
                                               disabled={task.status === 'completed'}
-                                              className={`px-3 py-1 text-sm rounded ${
+                                              className={`p-2 rounded-full transition-colors ${
                                                 task.status === 'completed'
                                                   ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                                                  : 'bg-green-600 text-white hover:bg-green-700'
+                                                  : 'text-green-600 hover:bg-green-50'
                                               }`}
+                                              title="Mark as Complete"
                                             >
-                                              Complete
+                                              <CheckCircle className="h-4 w-4" />
                                             </button>
                                           </div>
                                         </div>
                                         
                                         {/* Uploaded Documents Section */}
                                         <div className="mt-3">
-                                          <div className="flex items-center space-x-2 mb-2">
+                                          <div className="flex items-center gap-2 mb-2">
                                             <FileText className="h-4 w-4 text-gray-500" />
                                             <span className="text-sm font-medium text-gunmetal">Documents</span>
                                           </div>
@@ -539,12 +546,12 @@ const ClientPortal: React.FC = () => {
                                             <div className="space-y-2">
                                               {taskDocuments.map((doc: any) => (
                                                 <div key={doc._id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                                  <div className="flex items-center space-x-2">
+                                                  <div className="flex items-center gap-2">
                                                     <FileText className="h-4 w-4 text-gray-500" />
                                                     <span className="text-sm text-gunmetal">{doc.fileName}</span>
                                                     <span className="text-xs text-gray-500">({doc.fileType})</span>
                                                   </div>
-                                                  <div className="flex items-center space-x-2">
+                                                  <div className="flex items-center gap-2">
                                                     <span className={`text-xs px-2 py-1 rounded ${
                                                       doc.status === 'approved' ? 'bg-green-100 text-green-800' :
                                                       doc.status === 'rejected' ? 'bg-red-100 text-red-800' :
@@ -588,9 +595,10 @@ const ClientPortal: React.FC = () => {
                                                         <span className="text-gray-700">{file.name}</span>
                                                         <button
                                                           onClick={() => handleFileRemove(task._id, index)}
-                                                          className="text-red-500 hover:text-red-700"
+                                                          className="p-1 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                                          title="Remove file"
                                                         >
-                                                          <X className="h-4 w-4" />
+                                                          <X className="h-3 w-3" />
                                                         </button>
                                                       </div>
                                                     ))}
@@ -602,9 +610,19 @@ const ClientPortal: React.FC = () => {
                                               <button
                                                 onClick={() => handleFileUpload(task._id)}
                                                 disabled={!selectedFiles[task._id] || selectedFiles[task._id].length === 0 || uploadingFiles[task._id]}
-                                                className="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                                className="w-full bg-blue-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                               >
-                                                {uploadingFiles[task._id] ? 'Uploading...' : 'Upload Documents'}
+                                                {uploadingFiles[task._id] ? (
+                                                  <>
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                                    Uploading...
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Upload className="h-4 w-4" />
+                                                    Upload Documents
+                                                  </>
+                                                )}
                                               </button>
                                             </div>
                                           )}

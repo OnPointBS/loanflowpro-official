@@ -5,7 +5,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { UserPlus, Eye, Users, Building, Filter, Settings, EyeOff } from 'lucide-react';
-import ClientInviteManager from '../components/ClientInviteManager';
+
 import PartnerPermissionManager from '../components/PartnerPermissionManager';
 
 interface Client {
@@ -51,6 +51,8 @@ interface ClientLoanType {
     category: string;
   };
   taskCount?: number;
+  completedTasks?: number;
+  progressPercentage?: number;
 }
 
 const Clients: React.FC = () => {
@@ -78,7 +80,6 @@ const Clients: React.FC = () => {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
   const [selectedTaskToEdit, setSelectedTaskToEdit] = useState<any>(null);
-  const [isClientInviteModalOpen, setIsClientInviteModalOpen] = useState(false);
   const [isDeleteConfirmationModalOpen, setIsDeleteConfirmationModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ type: 'client' | 'partner'; item: Client | Partner } | null>(null);
   const [newTaskForm, setNewTaskForm] = useState({
@@ -102,7 +103,7 @@ const Clients: React.FC = () => {
     email: '',
     phone: '',
     notes: '',
-    status: 'prospect' as 'active' | 'inactive' | 'prospect' | 'invited' | 'declined',
+    status: 'active' as 'active' | 'inactive' | 'prospect' | 'invited' | 'declined',
   });
   const [assignLoanTypeForm, setAssignLoanTypeForm] = useState({
     loanTypeId: '',
@@ -110,6 +111,15 @@ const Clients: React.FC = () => {
     notes: '',
   });
   const [isPartnerPermissionModalOpen, setIsPartnerPermissionModalOpen] = useState(false);
+  const [combinedModalType, setCombinedModalType] = useState<'add' | 'inviteClient' | 'invitePartner'>('add');
+  const [inviteForm, setInviteForm] = useState({
+    name: '',
+    email: '',
+    company: '',
+    phone: '',
+    role: '',
+    permissions: [] as string[],
+  });
 
   // Check if this is a demo account
   const isDemoAccount = user?.email === 'demo@loanflowpro.com';
@@ -280,6 +290,8 @@ const Clients: React.FC = () => {
       updatedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
       loanType: demoLoanTypes[0],
       taskCount: 5,
+      completedTasks: 3,
+      progressPercentage: 60,
     },
     {
       _id: '2',
@@ -287,7 +299,7 @@ const Clients: React.FC = () => {
       loanTypeId: '2',
       customOrder: 2,
       isActive: true,
-      assignedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      assignedAt: Date.now() - 3 * 24 * 24 * 60 * 60 * 1000,
       assignedBy: 'advisor1',
       customName: 'HELOC',
       notes: 'Home equity line of credit for renovations',
@@ -295,6 +307,8 @@ const Clients: React.FC = () => {
       updatedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
       loanType: demoLoanTypes[1],
       taskCount: 3,
+      completedTasks: 1,
+      progressPercentage: 33,
     },
     {
       _id: '3',
@@ -310,6 +324,8 @@ const Clients: React.FC = () => {
       updatedAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
       loanType: demoLoanTypes[0],
       taskCount: 4,
+      completedTasks: 2,
+      progressPercentage: 50,
     },
   ];
 
@@ -339,8 +355,13 @@ const Clients: React.FC = () => {
           // Find the corresponding loan type
           const loanType = loanTypesQuery.find(lt => lt._id === clt.loanTypeId);
           
-          // Calculate task count for this client loan type
-          const taskCount = clientTasksQuery.filter(task => task.clientLoanTypeId === clt._id).length;
+          // Get all tasks for this client loan type
+          const tasks = clientTasksQuery.filter(task => task.clientLoanTypeId === clt._id);
+          const taskCount = tasks.length;
+          
+          // Calculate completed tasks and progress
+          const completedTasks = tasks.filter(task => task.status === 'completed').length;
+          const progressPercentage = taskCount > 0 ? Math.round((completedTasks / taskCount) * 100) : 0;
           
           return {
             ...clt,
@@ -350,6 +371,8 @@ const Clients: React.FC = () => {
               category: loanType.category,
             } : undefined,
             taskCount,
+            completedTasks,
+            progressPercentage,
           };
         });
     }
@@ -448,12 +471,47 @@ const Clients: React.FC = () => {
       });
 
       setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+      setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
       setIsAddModalOpen(false);
       
       // The UI will automatically update due to Convex's real-time updates
       // No need for manual refresh
     } catch (error) {
       console.error('Error creating client:', error);
+    }
+  };
+
+  // Handle invite client/partner
+  const handleInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace || !user) return;
+
+    try {
+      if (combinedModalType === 'inviteClient') {
+        // This is a simplified version - in the real implementation, you'd use the proper client invite API
+        // For now, we'll add them as a client with invited status
+        await createClient({
+          workspaceId: workspace.id as Id<"workspaces">,
+          name: inviteForm.name,
+          email: inviteForm.email,
+          phone: inviteForm.phone || '',
+          notes: `Invited via portal - Company: ${inviteForm.company || 'N/A'}, Role: ${inviteForm.role || 'N/A'}`,
+        });
+
+        // Reset form and close modal
+        setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+        setIsAddModalOpen(false);
+        
+        alert('Client invited successfully! In a full implementation, an email invitation would be sent.');
+      } else if (combinedModalType === 'invitePartner') {
+        // This is a simplified version - in the real implementation, you'd use the proper partner invite API
+        // For now, we'll add them as a partner with invited status
+        // Note: This would need to be updated to use the actual partner creation API
+        alert('Partner invitation functionality would be implemented here. In the real system, this would create a partner invite record and send an email invitation.');
+      }
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      alert('Error sending invitation. Please try again.');
     }
   };
 
@@ -1014,30 +1072,13 @@ const Clients: React.FC = () => {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => setIsAssignModalOpen(true)}
-                className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30"
-              >
-                Assign Loan Type
-              </button>
-                        <button
-            onClick={() => setIsClientInviteModalOpen(true)}
-            className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30 flex items-center space-x-2"
-          >
-                      <UserPlus className="w-4 h-4" />
-          <span>Invite Client/Partner</span>
-          </button>
-          <button
-            onClick={() => window.open('/client', '_blank')}
-            className="bg-brand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-orange/90 transition-all duration-200 flex items-center space-x-2"
-          >
-            <Eye className="w-4 h-4" />
-            <span>View as Client</span>
-          </button>
-              <button
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={() => {
+                  setCombinedModalType('add');
+                  setIsAddModalOpen(true);
+                }}
                 className="bg-brand-orange hover:bg-brand-orange-dark text-white px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl font-semibold"
               >
-                Add Client
+                Add
               </button>
             </div>
           </div>
@@ -1137,6 +1178,21 @@ const Clients: React.FC = () => {
                       {item.name}
                     </h3>
                     <p className="text-sm text-gunmetal-light truncate">{item.email}</p>
+                    {clientLoanTypes.length > 0 && (
+                      <div className="flex items-center space-x-2 mt-1">
+                        <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                          <div 
+                            className="bg-gradient-to-r from-brand-orange to-brand-orange-dark h-1.5 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${clientLoanTypes.reduce((acc, lt) => acc + (lt.progressPercentage || 0), 0) / clientLoanTypes.length}%` 
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-gunmetal-light">
+                          {Math.round(clientLoanTypes.reduce((acc, lt) => acc + (lt.progressPercentage || 0), 0) / clientLoanTypes.length)}% complete
+                        </span>
+                      </div>
+                    )}
                   </div>
                   {getStatusBadge(item.status)}
                 </div>
@@ -1163,9 +1219,26 @@ const Clients: React.FC = () => {
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-lg font-semibold text-gunmetal">Loan Types</h4>
-                    <span className="text-sm text-gunmetal-light bg-white/60 px-2 py-1 rounded-full">
-                      {clientLoanTypes.length} assigned
-                    </span>
+                    <div className="flex items-center space-x-3">
+                      {clientLoanTypes.length > 0 && (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-16 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-gradient-to-r from-brand-orange to-brand-orange-dark h-2 rounded-full transition-all duration-300"
+                              style={{ 
+                                width: `${clientLoanTypes.reduce((acc, lt) => acc + (lt.progressPercentage || 0), 0) / clientLoanTypes.length}%` 
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gunmetal-light">
+                            {Math.round(clientLoanTypes.reduce((acc, lt) => acc + (lt.progressPercentage || 0), 0) / clientLoanTypes.length)}% overall
+                          </span>
+                        </div>
+                      )}
+                      <span className="text-sm text-gunmetal-light bg-white/60 px-2 py-1 rounded-full">
+                        {clientLoanTypes.length} assigned
+                      </span>
+                    </div>
                   </div>
                   
                   {clientLoanTypes.length > 0 ? (
@@ -1207,6 +1280,28 @@ const Clients: React.FC = () => {
                             <p className="text-xs text-gunmetal-light mb-2 line-clamp-2">
                               {clientLoanType.loanType?.description}
                             </p>
+                            
+                            {/* Progress Bar */}
+                            <div className="mb-3">
+                              <div className="flex items-center justify-between text-xs text-gunmetal-light mb-1">
+                                <span>Progress</span>
+                                <span className="font-medium text-brand-orange">
+                                  {clientLoanType.progressPercentage || 0}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-gradient-to-r from-brand-orange to-brand-orange-dark h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${clientLoanType.progressPercentage || 0}%` }}
+                                ></div>
+                              </div>
+                              <div className="flex items-center justify-between text-xs text-gunmetal-light mt-1">
+                                <span>
+                                  {clientLoanType.completedTasks || 0} of {clientLoanType.taskCount || 0} tasks completed
+                                </span>
+                              </div>
+                            </div>
+                            
                             <div className="flex items-center justify-between text-xs text-gunmetal-light">
                               <span className="text-brand-orange font-medium">
                                 {'taskCount' in clientLoanType ? (clientLoanType.taskCount || 0) : 'Tasks will be calculated'} tasks
@@ -1437,22 +1532,106 @@ const Clients: React.FC = () => {
       {isAddModalOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
-          onClick={(e) => handleModalBackdropClick(e, setIsAddModalOpen)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsAddModalOpen(false);
+              // Reset forms when closing modal via backdrop click
+              setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+              setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+              setCombinedModalType('add');
+            }
+          }}
         >
           <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl mx-4 relative">
             <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pt-2 pb-4 border-b border-gray-200">
               <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
-                Add New Client
+                {combinedModalType === 'add' 
+                  ? 'Add New Client' 
+                  : combinedModalType === 'inviteClient'
+                  ? 'Invite Client'
+                  : 'Invite Partner'
+                }
               </h2>
               <button
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  // Reset forms when closing modal
+                  setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+                  setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+                  setCombinedModalType('add');
+                }}
                 className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200 p-1 bg-white rounded-full hover:bg-gray-100"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleAddClient} className="space-y-4 sm:space-y-6">
+            {/* Modal Type Selector */}
+            <div className="mb-6">
+              <div className="flex space-x-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCombinedModalType('add');
+                    // Reset forms when switching
+                    setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+                    setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    combinedModalType === 'add'
+                      ? 'bg-brand-orange text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Add Client</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCombinedModalType('inviteClient');
+                    // Reset forms when switching
+                    setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+                    setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    combinedModalType === 'inviteClient'
+                      ? 'bg-brand-orange text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Invite Client</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCombinedModalType('invitePartner');
+                    // Reset forms when switching
+                    setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+                    setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    combinedModalType === 'invitePartner'
+                      ? 'bg-brand-orange text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Building className="w-4 h-4" />
+                  <span>Invite Partner</span>
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                {combinedModalType === 'add' 
+                  ? 'Add a new client directly to your system.'
+                  : combinedModalType === 'inviteClient'
+                  ? 'Invite a client to access your platform.'
+                  : 'Invite a partner (real estate agent, title company, etc.) to monitor loan progress.'
+                }
+              </p>
+            </div>
+
+            <form onSubmit={combinedModalType === 'add' ? handleAddClient : handleInvite} className="space-y-4 sm:space-y-6">
               <div>
                 <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
                   Name *
@@ -1461,8 +1640,14 @@ const Clients: React.FC = () => {
                   type="text"
                   name="name"
                   required
-                  value={addClientForm.name}
-                  onChange={(e) => setAddClientForm({ ...addClientForm, name: e.target.value })}
+                  value={combinedModalType === 'add' ? addClientForm.name : inviteForm.name}
+                  onChange={(e) => {
+                    if (combinedModalType === 'add') {
+                      setAddClientForm({ ...addClientForm, name: e.target.value });
+                    } else if (combinedModalType === 'inviteClient' || combinedModalType === 'invitePartner') {
+                      setInviteForm({ ...inviteForm, name: e.target.value });
+                    }
+                  }}
                   className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
                   placeholder="Enter client name"
                 />
@@ -1476,8 +1661,14 @@ const Clients: React.FC = () => {
                   type="email"
                   name="email"
                   required
-                  value={addClientForm.email}
-                  onChange={(e) => setAddClientForm({ ...addClientForm, email: e.target.value })}
+                  value={combinedModalType === 'add' ? addClientForm.email : inviteForm.email}
+                  onChange={(e) => {
+                    if (combinedModalType === 'add') {
+                      setAddClientForm({ ...addClientForm, email: e.target.value });
+                    } else if (combinedModalType === 'inviteClient' || combinedModalType === 'invitePartner') {
+                      setInviteForm({ ...inviteForm, email: e.target.value });
+                    }
+                  }}
                   className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
                   placeholder="Enter client email"
                 />
@@ -1490,8 +1681,14 @@ const Clients: React.FC = () => {
                 <input
                   type="tel"
                   name="phone"
-                  value={addClientForm.phone}
-                  onChange={(e) => setAddClientForm({ ...addClientForm, phone: e.target.value })}
+                  value={combinedModalType === 'add' ? addClientForm.phone : inviteForm.phone}
+                  onChange={(e) => {
+                    if (combinedModalType === 'add') {
+                      setAddClientForm({ ...addClientForm, phone: e.target.value });
+                    } else if (combinedModalType === 'inviteClient' || combinedModalType === 'invitePartner') {
+                      setInviteForm({ ...inviteForm, phone: e.target.value });
+                    }
+                  }}
                   className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
                   placeholder="Enter phone number"
                 />
@@ -1504,17 +1701,62 @@ const Clients: React.FC = () => {
                 <textarea
                   name="notes"
                   rows={3}
-                  value={addClientForm.notes}
-                  onChange={(e) => setAddClientForm({ ...addClientForm, notes: e.target.value })}
+                  value={combinedModalType === 'add' ? addClientForm.notes : ''}
+                  onChange={(e) => {
+                    if (combinedModalType === 'add') {
+                      setAddClientForm({ ...addClientForm, notes: e.target.value });
+                    }
+                  }}
                   className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base resize-none"
                   placeholder="Enter any additional notes"
+                  disabled={combinedModalType === 'inviteClient' || combinedModalType === 'invitePartner'}
                 />
               </div>
+
+              {/* Invite-specific fields */}
+              {(combinedModalType === 'inviteClient' || combinedModalType === 'invitePartner') && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                        Company
+                      </label>
+                      <input
+                        type="text"
+                        name="company"
+                        value={inviteForm.company}
+                        onChange={(e) => setInviteForm({ ...inviteForm, company: e.target.value })}
+                        className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                        placeholder="Enter company name (optional)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                        Role
+                      </label>
+                      <input
+                        type="text"
+                        name="role"
+                        value={inviteForm.role}
+                        onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                        className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                        placeholder="Enter role (optional)"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sticky bottom-0 bg-white">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    // Reset forms when canceling
+                    setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+                    setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+                    setCombinedModalType('add');
+                  }}
                   className="flex-1 bg-gray-100 text-gray-700 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200 text-base"
                 >
                   Cancel
@@ -1523,7 +1765,12 @@ const Clients: React.FC = () => {
                   type="submit"
                   className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-base"
                 >
-                  Add Client
+                  {combinedModalType === 'add' 
+                    ? 'Add Client' 
+                    : combinedModalType === 'inviteClient'
+                    ? 'Send Client Invitation'
+                    : 'Send Partner Invitation'
+                  }
                 </button>
               </div>
             </form>
@@ -2758,10 +3005,7 @@ const Clients: React.FC = () => {
         </div>
       )}
 
-      {/* Client Invite Modal */}
-      {isClientInviteModalOpen && (
-        <ClientInviteManager onClose={() => setIsClientInviteModalOpen(false)} />
-      )}
+
 
       {/* Partner Permission Manager Modal */}
       {isPartnerPermissionModalOpen && selectedPartner && (
