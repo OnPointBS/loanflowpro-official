@@ -10,6 +10,9 @@
   "deployment": {
     "dev": {
       "url": "http://localhost:8000"
+    },
+    "prod": {
+      "url": "https://sensible-ermine-539.convex.cloud"
     }
   }
 }

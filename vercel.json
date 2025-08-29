@@ -1,0 +1,21 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/app/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "VITE_CONVEX_URL": "https://sensible-ermine-539.convex.cloud",
+    "CONVEX_DEPLOYMENT": "prod:sensible-ermine-539",
+    "NODE_ENV": "production",
+    "VITE_APP_ENV": "production"
+  }
+}

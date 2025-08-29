@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useAction } from "convex/react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 
 interface SignInFormProps {
@@ -11,6 +12,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [step, setStep] = useState<"email" | "check-email">("email");
+  const navigate = useNavigate();
 
   // Try to get the Convex action, but handle the case when it's not available
   let sendMagicLink: any = null;
@@ -21,22 +23,28 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onClose }) => {
   }
 
   const handleDemoAccount = () => {
+    console.log('🚀 Demo account clicked - setting up demo user...');
+    
     // Set demo user in localStorage for immediate access
-    localStorage.setItem("demoUser", JSON.stringify({
+    const demoUser = {
       _id: "demo-user-id",
       email: "demo@loanflowpro.com",
       name: "Demo User",
       isDemo: true,
       sessionToken: "demo-session-token"
-    }));
+    };
+    
+    localStorage.setItem("demoUser", JSON.stringify(demoUser));
+    console.log('✅ Demo user set in localStorage:', demoUser);
     
     // Close modal if in modal context
     if (onClose) {
       onClose();
     }
     
-    // Redirect to dashboard using replace for better compatibility
-    window.location.replace("/app/dashboard");
+    // Use React Router navigation instead of window.location
+    console.log('🔄 Navigating to dashboard...');
+    navigate("/app/dashboard", { replace: true });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
