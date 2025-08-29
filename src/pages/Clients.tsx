@@ -170,17 +170,80 @@ const Clients: React.FC = () => {
   ];
 
   // Mock data for demo users and verified users
-  const mockClients = [
-    { _id: "client1", name: "John Smith", email: "john@example.com", status: "active", createdAt: Date.now(), updatedAt: Date.now() },
-    { _id: "client2", name: "Sarah Johnson", email: "sarah@example.com", status: "active", createdAt: Date.now(), updatedAt: Date.now() },
-    { _id: "client3", name: "Mike Davis", email: "mike@example.com", status: "pending", createdAt: Date.now(), updatedAt: Date.now() }
+  const mockClients: Client[] = [
+    { 
+      _id: "client1" as any, 
+      name: "John Smith", 
+      email: "john@example.com", 
+      phone: "(555) 123-4567",
+      notes: "Active client with multiple loan types",
+      status: "active", 
+      createdAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
+      loanTypeCount: 2,
+      taskCount: 8
+    },
+    { 
+      _id: "client2" as any, 
+      name: "Sarah Johnson", 
+      email: "sarah@example.com", 
+      phone: "(555) 987-6543",
+      notes: "Prospect client",
+      status: "prospect", 
+      createdAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      loanTypeCount: 1,
+      taskCount: 4
+    },
+    { 
+      _id: "client3" as any, 
+      name: "Mike Davis", 
+      email: "mike@example.com", 
+      phone: "(555) 456-7890",
+      notes: "Inactive client",
+      status: "inactive", 
+      createdAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
+      loanTypeCount: 0,
+      taskCount: 0
+    }
   ];
 
   // Mock partner data
   const mockPartners: Partner[] = [
-    { _id: "partner1", name: "Jane Wilson", email: "jane@realestate.com", company: "Wilson Real Estate", role: "Real Estate Agent", status: "active", createdAt: Date.now(), permissions: ["view_loan_progress", "view_client_status"] },
-    { _id: "partner2", name: "Bob Thompson", email: "bob@titleco.com", company: "Thompson Title Co", role: "Title Company", status: "active", createdAt: Date.now(), permissions: ["view_loan_progress", "view_documents"] },
-    { _id: "partner3", name: "Lisa Chen", email: "lisa@insurance.com", company: "Chen Insurance", role: "Insurance Agent", status: "invited", createdAt: Date.now(), permissions: ["view_loan_progress"] }
+    { 
+      _id: "partner1" as any, 
+      name: "Jane Wilson", 
+      email: "jane@realestate.com", 
+      phone: "(555) 111-2222",
+      company: "Wilson Real Estate", 
+      role: "Real Estate Agent", 
+      status: "active", 
+      notes: "Primary real estate agent",
+      createdAt: Date.now() - 10 * 24 * 60 * 60 * 1000, 
+      permissions: ["view_loan_progress", "view_client_status"] 
+    },
+    { 
+      _id: "partner2" as any, 
+      name: "Bob Thompson", 
+      phone: "(555) 333-4444",
+      email: "bob@titleco.com", 
+      company: "Thompson Title Co", 
+      role: "Title Company", 
+      status: "active", 
+      notes: "Title company partner",
+      createdAt: Date.now() - 8 * 24 * 60 * 60 * 1000, 
+      permissions: ["view_loan_progress", "view_documents"] 
+    },
+    { 
+      _id: "partner3" as any, 
+      name: "Lisa Chen", 
+      phone: "(555) 555-6666",
+      email: "lisa@insurance.com", 
+      company: "Chen Insurance", 
+      role: "Insurance Agent", 
+      status: "invited", 
+      notes: "Insurance partner",
+      createdAt: Date.now() - 2 * 24 * 60 * 60 * 1000, 
+      permissions: ["view_loan_progress"] 
+    }
   ];
 
   // Use mock data for demo accounts and verified users, or real data for authenticated users
@@ -904,6 +967,7 @@ const Clients: React.FC = () => {
   };
 
   const openDeleteConfirmationModal = (type: 'client' | 'partner', item: Client | Partner) => {
+    console.log('Opening delete confirmation modal:', { type, item });
     setItemToDelete({ type, item });
     setIsDeleteConfirmationModalOpen(true);
   };
@@ -1203,7 +1267,10 @@ const Clients: React.FC = () => {
                     <span>View as Client</span>
                   </button>
                   <button
-                    onClick={() => openDeleteConfirmationModal('client', item)}
+                    onClick={() => {
+                      console.log('Delete client button clicked:', item);
+                      openDeleteConfirmationModal('client', item);
+                    }}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium"
                   >
                     Delete
@@ -1288,7 +1355,10 @@ const Clients: React.FC = () => {
                     View Details
                   </button>
                   <button
-                    onClick={() => openDeleteConfirmationModal('partner', item)}
+                    onClick={() => {
+                      console.log('Delete partner button clicked:', item);
+                      openDeleteConfirmationModal('partner', item);
+                    }}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium"
                   >
                     Delete
