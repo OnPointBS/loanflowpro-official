@@ -1,15 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import SignInForm from '../auth/SignInForm';
 import ProfessionalNav from '../components/ProfessionalNav';
 import { Helmet } from 'react-helmet-async';
 import FiberWaves from '../components/ui/shadcn-io/fiber-waves';
 
 const Landing: React.FC = () => {
-  const [showLoginModal, setShowLoginModal] = useState(false);
-
-  const openLoginModal = () => setShowLoginModal(true);
-  const closeLoginModal = () => setShowLoginModal(false);
 
   // Refs for parallax elements
   const heroRef = useRef<HTMLDivElement>(null);
@@ -196,12 +191,12 @@ const Landing: React.FC = () => {
               Manage clients, track applications, and streamline your workflow.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up-delay-3">
-              <button
-                onClick={openLoginModal}
+              <Link
+                to="/signin"
                 className="bg-[#D4AF37] hover:bg-[#B8941F] text-white font-semibold py-4 px-8 rounded-lg text-lg transition-all duration-500 shadow-lg hover:shadow-xl hover:-translate-y-2 hover:scale-105 transform-gpu"
               >
                 Get Started Free
-              </button>
+              </Link>
                                 <Link
                     to="/features"
                     className="border-2 border-slate-300 hover:border-[#D4AF37] text-slate-300 hover:text-[#D4AF37] font-semibold py-4 px-8 rounded-lg text-lg transition-all duration-500 hover:-translate-y-2 hover:scale-105 transform-gpu"
@@ -448,12 +443,12 @@ const Landing: React.FC = () => {
             <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto animate-slide-up-delay">
               Join thousands of professionals who trust LoanFlowPro to streamline their lending operations.
             </p>
-            <button
-              onClick={openLoginModal}
-              className="btn-luxury bg-[#D4AF37] hover:bg-[#B8941F] text-white font-semibold py-4 px-8 rounded-lg text-lg shadow-lg hover:shadow-xl"
+            <Link
+              to="/signin"
+              className="btn-luxury bg-[#D4AF37] hover:bg-[#B8941F] text-white font-semibold py-4 px-8 rounded-lg text-lg shadow-lg hover:shadow-xl inline-block"
             >
               Start Your Free Trial
-              </button>
+            </Link>
           </div>
         </div>
       </section>
@@ -508,12 +503,12 @@ const Landing: React.FC = () => {
                       Email support
                     </li>
                   </ul>
-                  <button
-                    onClick={openLoginModal}
-                    className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 hover:scale-[1.02] transform-gpu"
+                  <Link
+                    to="/signin"
+                    className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 hover:scale-[1.02] transform-gpu text-center block"
                   >
                     Start Free Trial
-                  </button>
+                  </Link>
                 </div>
                 
                 {/* Professional Plan */}
@@ -567,12 +562,12 @@ const Landing: React.FC = () => {
                       White-label options
                     </li>
                   </ul>
-                  <button
-                    onClick={openLoginModal}
-                    className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 hover:scale-[1.02] transform-gpu"
+                  <Link
+                    to="/signin"
+                    className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 hover:scale-[1.02] transform-gpu text-center block"
                   >
                     Start Free Trial
-                  </button>
+                  </Link>
                 </div>
               </div>
         </div>
@@ -702,39 +697,6 @@ const Landing: React.FC = () => {
         </div>
       </footer>
 
-      {/* Login Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            {/* Background overlay */}
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-75 transition-opacity"
-              onClick={closeLoginModal}
-            ></div>
-
-            {/* Modal */}
-            <div className="inline-block align-bottom bg-slate-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              {/* Modal Header */}
-              <div className="bg-slate-900 px-6 py-4 flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-white">Sign In to LoanFlowPro</h3>
-                <button
-                  onClick={closeLoginModal}
-                  className="text-slate-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Modal Body */}
-              <div className="p-8 text-white">
-                <SignInForm onClose={closeLoginModal} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </>
   );
