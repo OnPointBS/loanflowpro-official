@@ -56,6 +56,7 @@ export const createPartnerInvite = mutation({
       company,
       role: partnerRole,
       status: "invited",
+      permissions: permissions, // Add permissions field
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -222,17 +223,12 @@ export const acceptPartnerInvite = mutation({
       throw new ConvexError("Invitation has expired");
     }
 
-    // Update invitation status
-    await ctx.db.patch(inviteId, { 
-      status: "accepted",
-      acceptedAt: Date.now(),
-      acceptedBy: userId,
-    });
-
-    // Update partner status
+    // Update invitation and partner status
+    await ctx.db.patch(inviteId, { status: "accepted", acceptedAt: Date.now(), acceptedBy: userId });
     await ctx.db.patch(invite.partnerId, { 
-      status: "active",
+      status: "active", 
       updatedAt: Date.now(),
+      permissions: invite.permissions, // Copy permissions from invitation
     });
 
     // Create workspace membership for the partner
@@ -331,6 +327,28 @@ export const deletePartner = mutation({
 
     // Delete the partner
     await ctx.db.delete(partnerId);
+
+    return { success: true };
+  },
+});
+
+// Update partner permissions
+export const updatePartnerPermissions = mutation({
+  args: { 
+    partnerId: v.id("partners"),
+    permissions: v.array(v.string()),
+  },
+  handler: async (ctx, { partnerId, permissions }) => {
+    const partner = await ctx.db.get(partnerId);
+    if (!partner) {
+      throw new ConvexError("Partner not found");
+    }
+
+    // Update the partner's permissions
+    await ctx.db.patch(partnerId, { 
+      permissions: permissions,
+      updatedAt: Date.now(),
+    });
 
     return { success: true };
   },

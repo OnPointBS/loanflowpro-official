@@ -69,6 +69,7 @@ export default defineSchema({
     role: v.string(), // e.g., "Real Estate Agent", "Title Company", "Insurance Agent"
     notes: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("inactive"), v.literal("invited"), v.literal("declined")),
+    permissions: v.array(v.string()), // What the partner can access
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_workspace", ["workspaceId"]).index("by_email", ["email"]),

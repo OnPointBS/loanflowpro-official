@@ -6,6 +6,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { UserPlus, Eye, Users, Building, Filter, Settings, EyeOff } from 'lucide-react';
 import ClientInviteManager from '../components/ClientInviteManager';
+import PartnerPermissionManager from '../components/PartnerPermissionManager';
 
 interface Client {
   _id: string;
@@ -108,6 +109,7 @@ const Clients: React.FC = () => {
     customName: '',
     notes: '',
   });
+  const [isPartnerPermissionModalOpen, setIsPartnerPermissionModalOpen] = useState(false);
 
   // Check if this is a demo account
   const isDemoAccount = user?.email === 'demo@loanflowpro.com';
@@ -1375,10 +1377,24 @@ const Clients: React.FC = () => {
                     View Details
                   </button>
                   <button
+                    onClick={() => window.open('/partner', '_blank')}
+                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm font-medium"
+                  >
+                    <Eye className="w-4 h-4 mr-1" />
+                    View as Partner
+                  </button>
+                  <button
                     onClick={() => {
-                      console.log('Delete partner button clicked:', item);
-                      openDeleteConfirmationModal('partner', item);
+                      setSelectedPartner(item);
+                      setIsPartnerPermissionModalOpen(true);
                     }}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
+                  >
+                    <Settings className="w-4 h-4 mr-1" />
+                    Manage Permissions
+                  </button>
+                  <button
+                    onClick={() => openDeleteConfirmationModal('partner', item)}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 text-sm font-medium"
                   >
                     Delete
@@ -2738,6 +2754,18 @@ const Clients: React.FC = () => {
       {/* Client Invite Modal */}
       {isClientInviteModalOpen && (
         <ClientInviteManager onClose={() => setIsClientInviteModalOpen(false)} />
+      )}
+
+      {/* Partner Permission Manager Modal */}
+      {isPartnerPermissionModalOpen && selectedPartner && (
+        <PartnerPermissionManager
+          partnerId={selectedPartner._id}
+          partnerName={selectedPartner.name}
+          onClose={() => {
+            setIsPartnerPermissionModalOpen(false);
+            setSelectedPartner(null);
+          }}
+        />
       )}
     </div>
   );

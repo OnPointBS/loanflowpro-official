@@ -41,6 +41,7 @@ import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import Billing from './pages/Billing';
 import ClientPortal from './pages/ClientPortal';
+import PartnerPortal from './pages/PartnerPortal';
 import { api } from '../convex/_generated/api';
 import './App.css';
 
@@ -208,7 +209,7 @@ function App() {
                 <Route path="/help-center" element={<HelpCenter />} />
                 <Route path="/status" element={<Status />} />
                 
-                {/* Protected routes with WorkspaceLayout */}
+                {/* Protected routes */}
                 <Route path="/app" element={
                   <ProtectedRoute>
                     <WorkspaceLayout />
@@ -225,15 +226,10 @@ function App() {
                   <Route path="settings" element={<Settings />} />
                   <Route path="billing" element={<Billing />} />
                 </Route>
-
-                {/* Client Portal Routes */}
-                <Route path="/client" element={
-                  <ProtectedRoute>
-                    <ClientPortal />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<ClientPortal />} />
-                </Route>
+                
+                {/* Portal routes */}
+                <Route path="/client" element={<ClientPortal />} />
+                <Route path="/partner" element={<PartnerPortal />} />
                 
                 {/* Default redirect */}
                 <Route path="*" element={<Navigate to="/" replace />} />
