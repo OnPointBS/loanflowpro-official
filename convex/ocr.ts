@@ -29,7 +29,7 @@ export const processDocument = action({
 This is a simulated OCR result for demonstration purposes. In production, this would contain the actual extracted text from the document.
 
 Key information found:
-- Document type: ${document.mimeType}
+- Document type: ${document.fileType}
 - File size: ${document.fileSize} bytes
 - Uploaded by: User ID ${document.uploadedBy}
 - Processing timestamp: ${new Date().toISOString()}

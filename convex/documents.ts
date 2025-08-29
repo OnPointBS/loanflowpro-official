@@ -10,11 +10,11 @@ export const upload = action({
     loanFileId: v.optional(v.id("loanFiles")),
     clientId: v.optional(v.id("clients")),
     fileName: v.string(),
-    mimeType: v.string(),
+    fileType: v.string(),
     fileSize: v.number(),
     uploadedBy: v.id("users"),
   },
-  handler: async (ctx, { workspaceId, loanFileId, clientId, fileName, mimeType, fileSize, uploadedBy }): Promise<string> => {
+  handler: async (ctx, { workspaceId, loanFileId, clientId, fileName, fileType, fileSize, uploadedBy }): Promise<string> => {
     // Upload file to storage
     const storageId = await ctx.storage.generateUploadUrl();
     
@@ -24,7 +24,7 @@ export const upload = action({
       loanFileId,
       clientId,
       fileName,
-      mimeType,
+      fileType,
       fileSize,
       storageId: storageId as any, // Type assertion for MVP
       uploadedBy,
@@ -41,7 +41,7 @@ export const create = mutation({
     loanFileId: v.optional(v.id("loanFiles")),
     clientId: v.optional(v.id("clients")),
     fileName: v.string(),
-    mimeType: v.string(),
+    fileType: v.string(),
     fileSize: v.number(),
     storageId: v.id("_storage"),
     uploadedBy: v.id("users"),
@@ -50,6 +50,7 @@ export const create = mutation({
     const documentId = await ctx.db.insert("documents", {
       ...args,
       status: "uploading",
+      uploadedAt: Date.now(),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -211,7 +212,9 @@ export const remove = mutation({
     }
 
     // Delete from storage
-    await ctx.storage.delete(document.storageId);
+    if (document.storageId) {
+      await ctx.storage.delete(document.storageId);
+    }
     
     // Delete document record
     await ctx.db.delete(documentId);
@@ -232,6 +235,9 @@ export const getDownloadUrl = action({
     }
 
     // Generate download URL
+    if (!document.storageId) {
+      throw new ConvexError("Document has no storage ID");
+    }
     const url = await ctx.storage.getUrl(document.storageId);
     
     if (!url) {

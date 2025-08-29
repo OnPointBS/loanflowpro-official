@@ -19,7 +19,7 @@ export const sendMessage = mutation({
       type: args.type,
       status: "sent",
       createdAt: Date.now(),
-      readAt: null,
+      readAt: undefined,
     });
 
     return messageId;

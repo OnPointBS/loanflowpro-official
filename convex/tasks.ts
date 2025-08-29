@@ -23,6 +23,7 @@ export const create = mutation({
     const taskId = await ctx.db.insert("tasks", {
       workspaceId: args.workspaceId,
       title: args.title,
+      description: args.title, // Use title as description for now
       dueDate: new Date(args.dueDate).getTime(),
       priority: args.priority || "normal",
       status: args.status || "pending",
@@ -111,6 +112,7 @@ async function createTasksFromTemplates(
       loanFileId,
       taskTemplateId: template._id,
       title: template.title,
+      description: template.title, // Use title as description for now
       assigneeUserId,
       assigneeRole: template.assigneeRole,
       instructions: template.instructions,

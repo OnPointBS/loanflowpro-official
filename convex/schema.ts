@@ -92,7 +92,7 @@ export default defineSchema({
   loanTypes: defineTable({
     workspaceId: v.id("workspaces"),
     name: v.string(),
-    description: v.string(),
+    description: v.optional(v.string()),
     category: v.string(),
     stages: v.array(v.string()),
     status: v.union(v.literal("active"), v.literal("inactive")),
@@ -185,7 +185,7 @@ export default defineSchema({
     loanFileId: v.id("loanFiles"),
     taskTemplateId: v.optional(v.id("taskTemplates")),
     title: v.string(),
-    description: v.string(),
+    description: v.optional(v.string()),
     assigneeUserId: v.optional(v.id("users")),
     assigneeRole: v.union(v.literal("ADVISOR"), v.literal("STAFF"), v.literal("CLIENT")),
     instructions: v.string(),
