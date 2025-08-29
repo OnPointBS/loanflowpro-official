@@ -1,0 +1,1108 @@
+import React, { useState, useEffect } from 'react';
+import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+
+interface Client {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  notes?: string;
+  status: 'active' | 'inactive' | 'prospect';
+  createdAt: number;
+  loanTypeCount?: number;
+  taskCount?: number;
+}
+
+interface LoanType {
+  _id: string;
+  name: string;
+  description: string;
+  category: string;
+  stages: string[];
+  status: 'active' | 'inactive';
+}
+
+interface ClientLoanType {
+  _id: string;
+  clientId: string;
+  loanTypeId: string;
+  customOrder: number;
+  isActive: boolean;
+  assignedAt: number;
+  notes?: string;
+  loanType?: LoanType;
+  taskCount?: number;
+  customName?: string; // Allow clients to rename loan types
+}
+
+// Interface for real data from Convex
+interface ConvexClientLoanType {
+  _id: string;
+  clientId: string;
+  loanTypeId: string;
+  customOrder: number;
+  isActive: boolean;
+  assignedAt: number;
+  notes?: string;
+  loanType?: LoanType | null;
+  client?: any;
+  assignedBy?: any;
+  customName?: string;
+}
+
+interface TaskTemplate {
+  _id: string;
+  title: string;
+  assigneeRole: 'ADVISOR' | 'STAFF' | 'CLIENT';
+  instructions: string;
+  isRequired: boolean;
+  dueInDays: number;
+  attachmentsAllowed: boolean;
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+  order: number;
+}
+
+const Clients: React.FC = () => {
+  const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isClientDetailModalOpen, setIsClientDetailModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  // Form states
+  const [addClientForm, setAddClientForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    notes: '',
+  });
+
+  const [editClientForm, setEditClientForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    notes: '',
+    status: 'active' as 'active' | 'inactive' | 'prospect',
+  });
+
+  const [assignLoanTypeForm, setAssignLoanTypeForm] = useState({
+    loanTypeId: '',
+    customName: '',
+    notes: '',
+  });
+
+  // Check if this is a demo account
+  const isDemoAccount = user?.email === 'demo@loanflowpro.com';
+
+  // Demo data for demo accounts
+  const demoClients: Client[] = [
+    {
+      _id: '1',
+      name: 'John Smith',
+      email: 'john.smith@email.com',
+      phone: '(555) 123-4567',
+      status: 'active',
+      createdAt: Date.now() - 86400000,
+      loanTypeCount: 2,
+      taskCount: 15,
+    },
+    {
+      _id: '2',
+      name: 'Sarah Johnson',
+      email: 'sarah.johnson@email.com',
+      phone: '(555) 234-5678',
+      status: 'active',
+      createdAt: Date.now() - 172800000,
+      loanTypeCount: 1,
+      taskCount: 8,
+    },
+    {
+      _id: '3',
+      name: 'Mike Davis',
+      email: 'mike.davis@email.com',
+      phone: '(555) 345-6789',
+      status: 'prospect',
+      createdAt: Date.now() - 259200000,
+      loanTypeCount: 0,
+      taskCount: 0,
+    },
+  ];
+
+  const demoLoanTypes: LoanType[] = [
+    {
+      _id: 'lt1',
+      name: 'Conventional Mortgage',
+      description: 'Standard 30-year fixed-rate mortgage',
+      category: 'Residential',
+      stages: ['Application', 'Underwriting', 'Approval', 'Closing'],
+      status: 'active',
+    },
+    {
+      _id: 'lt2',
+      name: 'FHA Loan',
+      description: 'Federal Housing Administration loan for first-time buyers',
+      category: 'Residential',
+      stages: ['Application', 'Underwriting', 'Approval', 'Closing'],
+      status: 'active',
+    },
+    {
+      _id: 'lt3',
+      name: 'Commercial Real Estate',
+      description: 'Commercial property financing',
+      category: 'Commercial',
+      stages: ['Application', 'Underwriting', 'Approval', 'Closing'],
+      status: 'active',
+    },
+  ];
+
+  // Demo client loan type assignments
+  const demoClientLoanTypes: ClientLoanType[] = [
+    {
+      _id: 'clt1',
+      clientId: '1',
+      loanTypeId: 'lt1',
+      customOrder: 1,
+      isActive: true,
+      assignedAt: Date.now() - 86400000,
+      notes: 'Primary loan type for John',
+      loanType: demoLoanTypes[0],
+      taskCount: 8,
+      customName: 'John\'s Primary Mortgage',
+    },
+    {
+      _id: 'clt2',
+      clientId: '1',
+      loanTypeId: 'lt2',
+      customOrder: 2,
+      isActive: true,
+      assignedAt: Date.now() - 43200000,
+      notes: 'Backup option',
+      loanType: demoLoanTypes[1],
+      taskCount: 7,
+      customName: 'Backup FHA Option',
+    },
+    {
+      _id: 'clt3',
+      clientId: '2',
+      loanTypeId: 'lt1',
+      customOrder: 1,
+      isActive: true,
+      assignedAt: Date.now() - 86400000,
+      notes: 'Primary loan type for Sarah',
+      loanType: demoLoanTypes[0],
+      taskCount: 8,
+      customName: 'Sarah\'s Home Loan',
+    },
+  ];
+
+  // Fetch real data for real accounts
+  const clientsQuery = useQuery(
+    api.clients.listByWorkspace,
+    { workspaceId: workspace?._id || "" as any }
+  );
+  
+  const loanTypesQuery = useQuery(
+    api.loanTypes.listByWorkspace,
+    { workspaceId: workspace?._id || "" as any }
+  );
+
+  // Use real data or demo data based on account type
+  const clients = isDemoAccount ? demoClients : (clientsQuery || []);
+  const loanTypes = isDemoAccount ? demoLoanTypes : (loanTypesQuery || []);
+  const selectedClientDetails = null;
+
+  // Mutations
+  const createClient = useMutation(api.clients.create);
+  const updateClient = useMutation(api.clients.update);
+  const deleteClient = useMutation(api.clients.remove);
+  const assignLoanType = useMutation(api.clientLoanTypes.assignLoanTypeToClient);
+  const removeLoanType = useMutation(api.clientLoanTypes.removeLoanTypeFromClient);
+  const reorderLoanTypes = useMutation(api.clientLoanTypes.reorderClientLoanTypes);
+  const updateClientTaskStatus = useMutation(api.clientLoanTypes.updateClientTaskStatus);
+
+  // Use real data or demo data based on account type
+  const currentClients = isDemoAccount ? demoClients : clients;
+  const currentLoanTypes = isDemoAccount ? demoLoanTypes : loanTypes;
+  const currentClientDetails = isDemoAccount ? null : selectedClientDetails;
+
+  // Filter clients
+  const filteredClients = currentClients.filter(client => {
+    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         client.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || client.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Fetch client loan types for real accounts
+  const clientLoanTypesQuery = useQuery(
+    api.clientLoanTypes.listByWorkspace,
+    { workspaceId: workspace?._id || "" as any }
+  );
+
+  // Get client loan types (real or demo)
+  const getClientLoanTypes = (clientId: string) => {
+    if (isDemoAccount) {
+      return demoClientLoanTypes.filter(clt => clt.clientId === clientId);
+    }
+    
+    // For real accounts, filter from the workspace query
+    if (clientLoanTypesQuery) {
+      return clientLoanTypesQuery.filter(clt => clt.clientId === clientId);
+    }
+    
+    return [];
+  };
+
+  // Handle add client
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace || !user) return;
+
+    try {
+      await createClient({
+        workspaceId: workspace._id,
+        name: addClientForm.name,
+        email: addClientForm.email,
+        phone: addClientForm.phone || '',
+        notes: addClientForm.notes || '',
+      });
+
+      setAddClientForm({ name: '', email: '', phone: '', notes: '' });
+      setIsAddModalOpen(false);
+    } catch (error) {
+      console.error('Error creating client:', error);
+    }
+  };
+
+  // Handle edit client
+  const handleEditClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient) return;
+
+    try {
+      await updateClient({
+        clientId: selectedClient._id as any,
+        name: editClientForm.name,
+        email: editClientForm.email,
+        phone: editClientForm.phone || '',
+        notes: editClientForm.notes || '',
+        status: editClientForm.status,
+      });
+
+      setIsEditModalOpen(false);
+      setSelectedClient(null);
+    } catch (error) {
+      console.error('Error updating client:', error);
+    }
+  };
+
+  // Handle delete client
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      await deleteClient({ clientId: clientId as any });
+      setIsDeleteModalOpen(false);
+      setSelectedClient(null);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      alert('Failed to delete client. Please try again.');
+    }
+  };
+
+  // Open delete modal
+  const openDeleteModal = (client: Client) => {
+    setSelectedClient(client);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Open edit modal
+  const openEditModal = (client: Client) => {
+    setSelectedClient(client);
+    setEditClientForm({
+      name: client.name,
+      email: client.email,
+      phone: client.phone || '',
+      notes: client.notes || '',
+      status: client.status,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Handle assign loan type
+  const handleAssignLoanType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace || !user || !selectedClient) return;
+
+    try {
+      await assignLoanType({
+        workspaceId: workspace._id,
+        clientId: selectedClient._id as any,
+        loanTypeId: assignLoanTypeForm.loanTypeId as any,
+        customName: assignLoanTypeForm.customName || undefined,
+        notes: assignLoanTypeForm.notes || '',
+        assignedBy: user._id as any,
+      });
+
+      setAssignLoanTypeForm({ loanTypeId: '', customName: '', notes: '' });
+      setIsAssignModalOpen(false);
+    } catch (error) {
+      console.error('Error assigning loan type:', error);
+    }
+  };
+
+  // Handle reorder loan types
+  const handleReorderLoanTypes = async (clientId: string, newOrder: number[]) => {
+    if (!workspace) return;
+
+    try {
+      await reorderLoanTypes({
+        workspaceId: workspace._id,
+        clientId: clientId as any,
+        newOrder: newOrder.map((order, index) => ({ clientLoanTypeId: `demo-${index}` as any, newOrder: order })),
+      });
+    } catch (error) {
+      console.error('Error reordering loan types:', error);
+    }
+  };
+
+  // Handle remove loan type
+  const handleRemoveLoanType = async (clientLoanTypeId: string) => {
+    try {
+      await removeLoanType({ clientLoanTypeId: clientLoanTypeId as any });
+    } catch (error) {
+      console.error('Error removing loan type:', error);
+    }
+  };
+
+  // Handle task status update
+  const handleTaskStatusUpdate = async (taskId: string, newStatus: string) => {
+    if (isDemoAccount) {
+      // Demo account - show demo message
+      console.log('Updating task status (demo):', taskId, 'to', newStatus);
+      alert('Task status updated successfully! (This is a demo)');
+      return;
+    }
+
+    // Real account - call Convex API
+    try {
+      await updateClientTaskStatus({
+        taskId: taskId as any,
+        status: newStatus as any,
+      });
+      alert('Task status updated successfully!');
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+      alert('Failed to update task status. Please try again.');
+    }
+  };
+
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      active: { color: 'bg-green-100 text-green-800 border-green-200', text: 'Active' },
+      inactive: { color: 'bg-gray-100 text-gray-800 border-gray-200', text: 'Inactive' },
+      prospect: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', text: 'Prospect' },
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.inactive;
+    
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${config.color}`}>
+        {config.text}
+      </span>
+    );
+  };
+
+  // Format date
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString();
+  };
+
+  // Get category color
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      'Residential': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Commercial': 'bg-purple-100 text-purple-800 border-purple-200',
+      'Personal': 'bg-green-100 text-green-800 border-green-200',
+    };
+    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+            Clients
+          </h1>
+          <p className="text-gunmetal-light mt-2">
+            Manage your client relationships and loan type assignments
+          </p>
+        </div>
+        <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => setIsAssignModalOpen(true)}
+            className="bg-gradient-to-r from-brand-orange/20 to-brand-orange-dark/20 text-brand-orange px-6 py-3 rounded-xl font-semibold hover:from-brand-orange/30 hover:to-brand-orange-dark/30 transition-all duration-200 border border-brand-orange/30"
+          >
+            Assign Loan Type
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+          >
+            Add Client
+          </button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Search clients by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+          />
+        </div>
+        <div className="sm:w-48">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="prospect">Prospect</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Loading State for Real Data */}
+      {!isDemoAccount && !clients && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange mr-3"></div>
+            <p className="text-gunmetal-light">Loading clients from database...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Clients Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredClients.map((client) => {
+          const clientLoanTypes = getClientLoanTypes(client._id);
+          
+          return (
+            <div key={client._id} className="group relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300">
+                {/* Client Header */}
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-brand-orange to-brand-orange-dark rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-lg font-bold">
+                      {client.name.charAt(0)}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-bold text-gunmetal truncate group-hover:text-brand-orange transition-colors duration-200">
+                      {client.name}
+                    </h3>
+                    <p className="text-sm text-gunmetal-light truncate">{client.email}</p>
+                  </div>
+                  {getStatusBadge(client.status)}
+                </div>
+
+                {/* Client Details */}
+                <div className="space-y-3 mb-6">
+                  {client.phone && (
+                    <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <span>{client.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Added {formatDate(client.createdAt)}</span>
+                  </div>
+                </div>
+
+                {/* Loan Types Section */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-gunmetal">Loan Types</h4>
+                    <span className="text-sm text-gunmetal-light bg-white/60 px-2 py-1 rounded-full">
+                      {clientLoanTypes.length} assigned
+                    </span>
+                  </div>
+                  
+                  {clientLoanTypes.length > 0 ? (
+                    <div className="space-y-3">
+                      {clientLoanTypes
+                        .sort((a, b) => a.customOrder - b.customOrder)
+                        .map((clientLoanType) => (
+                          <div key={clientLoanType._id} className="bg-white/60 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="font-semibold text-gunmetal text-sm">
+                                {clientLoanType.customName || clientLoanType.loanType?.name}
+                              </h5>
+                              <div className="flex items-center space-x-2">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getCategoryColor(clientLoanType.loanType?.category || '')}`}>
+                                  {clientLoanType.loanType?.category}
+                                </span>
+                                <button
+                                  onClick={() => handleRemoveLoanType(clientLoanType._id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors duration-200"
+                                  title="Remove loan type"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                            <p className="text-xs text-gunmetal-light mb-2 line-clamp-2">
+                              {clientLoanType.loanType?.description}
+                            </p>
+                            <div className="flex items-center justify-between text-xs text-gunmetal-light">
+                              <span className="text-brand-orange font-medium">
+                                {'taskCount' in clientLoanType ? (clientLoanType.taskCount || 0) : 'Tasks will be calculated'} tasks
+                              </span>
+                              <span>Order: {clientLoanType.customOrder}</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-white/40 rounded-xl border border-white/20">
+                      <div className="text-3xl mb-2">🏠</div>
+                      <p className="text-gunmetal-light text-sm">No loan types assigned</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      setSelectedClient(client);
+                      setIsAssignModalOpen(true);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-brand-orange/20 to-brand-orange-dark/20 text-brand-orange px-3 py-2 rounded-xl font-semibold hover:from-brand-orange/30 hover:to-brand-orange-dark/30 transition-all duration-200 border border-brand-orange/30 text-sm"
+                  >
+                    Assign
+                  </button>
+                  <button
+                    onClick={() => openEditModal(client)}
+                    className="flex-1 bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-600 px-3 py-2 rounded-xl font-semibold hover:from-blue-500/30 hover:to-blue-600/30 transition-all duration-200 border border-blue-500/30 text-sm"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedClient(client);
+                      setIsClientDetailModalOpen(true);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-gunmetal/20 to-gunmetal-dark/20 text-gunmetal px-3 py-2 rounded-xl font-semibold hover:from-gunmetal/30 hover:to-gunmetal-dark/30 transition-all duration-200 border border-gunmetal/30 text-sm"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => openDeleteModal(client)}
+                    className="flex-1 bg-gradient-to-r from-red-500/20 to-red-600/20 text-red-600 px-3 py-2 rounded-xl font-semibold hover:from-red-500/30 hover:to-red-600/30 transition-all duration-200 border border-red-500/30 text-sm"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Empty State */}
+      {filteredClients.length === 0 && (
+        <div className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-12 border border-white/30 shadow-xl text-center hover:shadow-2xl transition-all duration-300">
+            <div className="text-6xl mb-4">👥</div>
+            <h3 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent mb-2">
+              No Clients Found
+            </h3>
+            <p className="text-gunmetal-light text-lg mb-6">
+              {searchTerm || statusFilter
+                ? 'Try adjusting your filters to see more results' 
+                : 'Create your first client to get started'
+              }
+            </p>
+            {!searchTerm && !statusFilter && (
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Create First Client
+              </button>
+            )}
+          </div>
+      )}
+
+      {/* Add Client Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                Add New Client
+              </h2>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddClient} className="space-y-6">
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={addClientForm.name}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, name: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={addClientForm.email}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, email: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={addClientForm.phone}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, phone: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={addClientForm.notes}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, notes: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  Add Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Loan Type Modal */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-lg shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                Assign Loan Type
+                {selectedClient && ` to ${selectedClient.name}`}
+              </h2>
+              <p className="text-sm text-gunmetal-light">
+                You can assign the same loan type multiple times with different custom names
+              </p>
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignLoanType} className="space-y-6">
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Loan Type *
+                </label>
+                <select
+                  required
+                  value={assignLoanTypeForm.loanTypeId}
+                  onChange={(e) => setAssignLoanTypeForm({ ...assignLoanTypeForm, loanTypeId: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                >
+                  <option value="">Select a loan type...</option>
+                  {currentLoanTypes
+                    .filter(lt => lt.status === 'active')
+                    .map((loanType) => (
+                      <option key={loanType._id} value={loanType._id}>
+                        {loanType.name} ({loanType.category})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Custom Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., John's Primary Mortgage, HELOC #2, Refinance Loan"
+                  value={assignLoanTypeForm.customName}
+                  onChange={(e) => setAssignLoanTypeForm({ ...assignLoanTypeForm, customName: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+                <p className="text-xs text-gunmetal-light mt-1">
+                  Customize the name for this client. For duplicate loan types, consider names like "Primary Mortgage", "HELOC #2", or "Refinance Loan" to distinguish them.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Notes
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Any special notes about this assignment..."
+                  value={assignLoanTypeForm.notes}
+                  onChange={(e) => setAssignLoanTypeForm({ ...assignLoanTypeForm, notes: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div className="bg-gradient-to-r from-brand-orange/5 to-brand-orange-dark/5 border border-brand-orange/20 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-brand-orange text-xl">ℹ️</div>
+                  <div className="text-sm text-gunmetal-light">
+                    <p className="font-medium text-gunmetal mb-1">What happens when you assign a loan type?</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• All associated tasks are automatically cloned to the client profile</li>
+                      <li>• Tasks are assigned based on the original template settings</li>
+                      <li>• You can customize task names, due dates, and instructions per client</li>
+                      <li>• The loan type can be renamed for client-specific needs</li>
+                      <li>• You can assign the same loan type multiple times (e.g., Primary + HELOC)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  Assign Loan Type
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Client Modal */}
+      {isEditModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                Edit Client: {selectedClient.name}
+              </h2>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditClient} className="space-y-6">
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editClientForm.name}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, name: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editClientForm.email}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, email: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={editClientForm.phone}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, phone: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={editClientForm.notes}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, notes: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Status
+                </label>
+                <select
+                  value={editClientForm.status}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, status: e.target.value as 'active' | 'inactive' | 'prospect' })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="prospect">Prospect</option>
+                </select>
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  Update Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                ⚠️ Delete Client
+              </h2>
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-red-600 text-xl">🚨</div>
+                  <div className="text-sm text-red-800">
+                    <p className="font-semibold mb-2">This action cannot be undone!</p>
+                    <p>Deleting this client will permanently remove:</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>All client information</li>
+                      <li>Assigned loan types</li>
+                      <li>Associated tasks</li>
+                      <li>Document history</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">Client to be deleted:</h3>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold">{selectedClient.name.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{selectedClient.name}</p>
+                    <p className="text-sm text-gray-600">{selectedClient.email}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteClient(selectedClient._id)}
+                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Delete Forever
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Detail Modal */}
+      {isClientDetailModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                Client Details: {selectedClient.name}
+              </h2>
+              <button
+                onClick={() => setIsClientDetailModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Client Information */}
+              <div>
+                <h3 className="text-xl font-semibold text-gunmetal mb-4">Client Information</h3>
+                <div className="space-y-4">
+                  <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-brand-orange to-brand-orange-dark rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold">{selectedClient.name.charAt(0)}</span>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gunmetal">{selectedClient.name}</h4>
+                        <p className="text-sm text-gunmetal-light">{selectedClient.email}</p>
+                      </div>
+                    </div>
+                    {selectedClient.phone && (
+                      <p className="text-sm text-gunmetal-light">{selectedClient.phone}</p>
+                    )}
+                    <div className="mt-3">
+                      {getStatusBadge(selectedClient.status)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loan Types */}
+              <div>
+                <h3 className="text-xl font-semibold text-gunmetal mb-4">Assigned Loan Types</h3>
+                <div className="space-y-3">
+                  {getClientLoanTypes(selectedClient._id).length > 0 ? (
+                    getClientLoanTypes(selectedClient._id)
+                      .sort((a, b) => a.customOrder - b.customOrder)
+                      .map((clientLoanType) => (
+                        <div key={clientLoanType._id} className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h5 className="font-semibold text-gunmetal">
+                                {clientLoanType.customName || clientLoanType.loanType?.name}
+                              </h5>
+                              <p className="text-sm text-gunmetal-light">
+                                {clientLoanType.loanType?.description}
+                              </p>
+                            </div>
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getCategoryColor(clientLoanType.loanType?.category || '')}`}>
+                              {clientLoanType.loanType?.category}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gunmetal-light">
+                            <span className="text-brand-orange font-medium">
+                              {'taskCount' in clientLoanType ? (clientLoanType.taskCount || 0) : 'Tasks will be calculated'} tasks
+                            </span>
+                            <span>Order: {clientLoanType.customOrder}</span>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center py-8 bg-white/40 rounded-xl border border-white/20">
+                      <div className="text-3xl mb-2">🏠</div>
+                      <p className="text-gunmetal-light">No loan types assigned yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Clients;

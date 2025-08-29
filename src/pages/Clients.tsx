@@ -1,0 +1,2325 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../auth/AuthProvider';
+import { useWorkspace } from '../contexts/WorkspaceContext';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import type { Id } from '../../convex/_generated/dataModel';
+
+interface Client {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  notes?: string;
+  status: 'active' | 'inactive' | 'prospect';
+  createdAt: number;
+  loanTypeCount?: number;
+  taskCount?: number;
+}
+
+interface ClientLoanType {
+  _id: string;
+  clientId: string;
+  loanTypeId: string;
+  customOrder: number;
+  isActive: boolean;
+  assignedAt: number;
+  assignedBy: string;
+  customName?: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+  loanType?: {
+    name: string;
+    description: string;
+    category: string;
+  };
+  taskCount?: number;
+}
+
+const Clients: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
+  const { workspace } = useWorkspace();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleteLoanTypeModalOpen, setIsDeleteLoanTypeModalOpen] = useState(false);
+  const [isLoanTypeEditModalOpen, setIsLoanTypeEditModalOpen] = useState(false);
+  const [isClientDetailModalOpen, setIsClientDetailModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedLoanTypeToDelete, setSelectedLoanTypeToDelete] = useState<{ id: string; name: string; clientName: string } | null>(null);
+  const [selectedLoanTypeToEdit, setSelectedLoanTypeToEdit] = useState<{ clientId: string; clientLoanType: any; clientName: string } | null>(null);
+  const [loanTypeEditForm, setLoanTypeEditForm] = useState({
+    customName: '',
+    notes: '',
+  });
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false);
+  const [selectedTaskToEdit, setSelectedTaskToEdit] = useState<any>(null);
+  const [newTaskForm, setNewTaskForm] = useState({
+    title: '',
+    instructions: '',
+    assigneeRole: 'CLIENT' as 'ADVISOR' | 'STAFF' | 'CLIENT',
+    priority: 'normal' as 'low' | 'normal' | 'high' | 'urgent',
+    dueInDays: 7,
+    attachmentsAllowed: true,
+    isRequired: true,
+  });
+  const [addClientForm, setAddClientForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    notes: '',
+    status: 'prospect' as const,
+  });
+  const [editClientForm, setEditClientForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    notes: '',
+    status: 'prospect' as 'active' | 'inactive' | 'prospect',
+  });
+  const [assignLoanTypeForm, setAssignLoanTypeForm] = useState({
+    loanTypeId: '',
+    customName: '',
+    notes: '',
+  });
+
+  // Check if this is a demo account
+  const isDemoAccount = user?.email === 'demo@loanflowpro.com';
+  const isVerifiedUser = user?.email === 'verified@example.com';
+  const hasValidWorkspace = !!workspace?.id;
+
+  // Demo data for demo accounts
+  const demoClients: Client[] = [
+    {
+      _id: '1',
+      name: 'John Smith',
+      email: 'john@example.com',
+      phone: '(555) 123-4567',
+      status: 'active',
+      createdAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
+      loanTypeCount: 2,
+      taskCount: 8,
+    },
+    {
+      _id: '2',
+      name: 'Sarah Johnson',
+      email: 'sarah@example.com',
+      phone: '(555) 987-6543',
+      status: 'prospect',
+      createdAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      loanTypeCount: 1,
+      taskCount: 4,
+    },
+    {
+      _id: '3',
+      name: 'Mike Davis',
+      email: 'mike@example.com',
+      phone: '(555) 456-7890',
+      status: 'inactive',
+      createdAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
+      loanTypeCount: 0,
+      taskCount: 0,
+    },
+  ];
+
+  const demoLoanTypes = [
+    {
+      _id: '1',
+      name: 'FHA Loan (Residential)',
+      description: 'Federal Housing Administration backed loan with lower down payment requirements',
+      category: 'Residential',
+    },
+    {
+      _id: '2',
+      name: 'Conventional Loan',
+      description: 'Traditional mortgage loan with competitive interest rates',
+      category: 'Residential',
+    },
+    {
+      _id: '3',
+      name: 'Commercial Loan',
+      description: 'Business property financing with flexible terms',
+      category: 'Commercial',
+    },
+  ];
+
+  // Mock data for demo users and verified users
+  const mockClients = [
+    { _id: "client1", name: "John Smith", email: "john@example.com", status: "active", createdAt: Date.now(), updatedAt: Date.now() },
+    { _id: "client2", name: "Sarah Johnson", email: "sarah@example.com", status: "active", createdAt: Date.now(), updatedAt: Date.now() },
+    { _id: "client3", name: "Mike Davis", email: "mike@example.com", status: "pending", createdAt: Date.now(), updatedAt: Date.now() }
+  ];
+
+  // Use mock data for demo accounts and verified users, or real data for authenticated users
+  const shouldUseMockData = isDemoAccount || isVerifiedUser;
+  
+  const clientsQuery = useQuery(api.clients.listByWorkspace, shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any });
+  const clients = shouldUseMockData ? mockClients : (hasValidWorkspace && clientsQuery) ? clientsQuery : [];
+
+  const loanTypesQuery = useQuery(
+    api.loanTypes.listByWorkspace,
+    shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any }
+  );
+
+  // Use real data or demo data based on account type
+  const loanTypes = shouldUseMockData ? demoLoanTypes : (loanTypesQuery || []);
+
+  const demoClientLoanTypes: ClientLoanType[] = [
+    {
+      _id: '1',
+      clientId: '1',
+      loanTypeId: '1',
+      customOrder: 1,
+      isActive: true,
+      assignedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
+      assignedBy: 'advisor1',
+      customName: 'Primary Mortgage',
+      notes: 'Client prefers 30-year fixed rate',
+      createdAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
+      updatedAt: Date.now() - 5 * 24 * 60 * 60 * 1000,
+      loanType: demoLoanTypes[0],
+      taskCount: 5,
+    },
+    {
+      _id: '2',
+      clientId: '1',
+      loanTypeId: '2',
+      customOrder: 2,
+      isActive: true,
+      assignedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      assignedBy: 'advisor1',
+      customName: 'HELOC',
+      notes: 'Home equity line of credit for renovations',
+      createdAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      updatedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
+      loanType: demoLoanTypes[1],
+      taskCount: 3,
+    },
+    {
+      _id: '3',
+      clientId: '2',
+      loanTypeId: '1',
+      customOrder: 1,
+      isActive: true,
+      assignedAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
+      assignedBy: 'advisor1',
+      customName: 'FHA Loan',
+      notes: 'First-time homebuyer',
+      createdAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
+      updatedAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
+      loanType: demoLoanTypes[0],
+      taskCount: 4,
+    },
+  ];
+
+  // Fetch client loan types for real accounts
+  const clientLoanTypesQuery = useQuery(
+    api.clientLoanTypes.listByWorkspace,
+    shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any }
+  );
+
+  // Fetch client tasks for real accounts to calculate task counts
+  const clientTasksQuery = useQuery(
+    api.clientLoanTypes.listClientTasksByWorkspace,
+    shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any }
+  );
+
+  // Get client loan types (real or demo)
+  const getClientLoanTypes = (clientId: string) => {
+    if (isDemoAccount) {
+      return demoClientLoanTypes.filter(clt => clt.clientId === clientId);
+    }
+
+    // For real accounts, filter from the workspace query and populate loan type details
+    if (clientLoanTypesQuery && loanTypesQuery && clientTasksQuery) {
+      return clientLoanTypesQuery
+        .filter(clt => clt.clientId === clientId)
+        .map(clt => {
+          // Find the corresponding loan type
+          const loanType = loanTypesQuery.find(lt => lt._id === clt.loanTypeId);
+          
+          // Calculate task count for this client loan type
+          const taskCount = clientTasksQuery.filter(task => task.clientLoanTypeId === clt._id).length;
+          
+          return {
+            ...clt,
+            loanType: loanType ? {
+              name: loanType.name,
+              description: loanType.description,
+              category: loanType.category,
+            } : undefined,
+            taskCount,
+          };
+        });
+    }
+    return [];
+  };
+
+  // Filter clients based on search and status
+  const filteredClients = (isDemoAccount ? demoClients : clients).filter(client => {
+    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         client.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || client.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Mutations
+  const createClient = useMutation(api.clients.create);
+  const updateClient = useMutation(api.clients.update);
+  const deleteClient = useMutation(api.clients.remove);
+  const assignLoanType = useMutation(api.clientLoanTypes.assignLoanTypeToClient);
+  const reorderLoanTypes = useMutation(api.clientLoanTypes.reorderClientLoanTypes);
+  const removeLoanType = useMutation(api.clientLoanTypes.removeLoanTypeFromClient);
+  const updateClientTaskStatus = useMutation(api.clientLoanTypes.updateClientTaskStatus);
+  const updateClientLoanTypeAssignment = useMutation(api.clientLoanTypes.updateClientLoanTypeAssignment);
+
+  // Handle add client
+  const handleAddClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace || !user) return;
+
+    try {
+      await createClient({
+        workspaceId: workspace.id as Id<"workspaces">,
+        name: addClientForm.name,
+        email: addClientForm.email,
+        phone: addClientForm.phone || '',
+        notes: addClientForm.notes || '',
+      });
+
+      setAddClientForm({ name: '', email: '', phone: '', notes: '', status: 'prospect' });
+      setIsAddModalOpen(false);
+      
+      // The UI will automatically update due to Convex's real-time updates
+      // No need for manual refresh
+    } catch (error) {
+      console.error('Error creating client:', error);
+    }
+  };
+
+  // Handle edit client
+  const handleEditClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClient) return;
+
+    try {
+      await updateClient({
+        clientId: selectedClient._id as any,
+        name: editClientForm.name,
+        email: editClientForm.email,
+        phone: editClientForm.phone || '',
+        notes: editClientForm.notes || '',
+        status: editClientForm.status,
+      });
+
+      setIsEditModalOpen(false);
+      setSelectedClient(null);
+      
+      // The UI will automatically update due to Convex's real-time updates
+      // No need for manual refresh
+    } catch (error) {
+      console.error('Error updating client:', error);
+    }
+  };
+
+  // Handle delete client
+  const handleDeleteClient = async (clientId: string) => {
+    try {
+      await deleteClient({ clientId: clientId as any });
+      setIsDeleteModalOpen(false);
+      setSelectedClient(null);
+      
+      // The UI will automatically update due to Convex's real-time updates
+      // No need for manual refresh
+    } catch (error) {
+      console.error('Error deleting client:', error);
+    }
+  };
+
+  // Open delete modal
+  const openDeleteModal = (client: Client) => {
+    setSelectedClient(client);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Open delete loan type modal
+  const openDeleteLoanTypeModal = (clientLoanTypeId: string, loanTypeName: string, clientName: string) => {
+    setSelectedLoanTypeToDelete({ id: clientLoanTypeId, name: loanTypeName, clientName });
+    setIsDeleteLoanTypeModalOpen(true);
+  };
+
+  // Open loan type edit modal
+  const openLoanTypeEditModal = (clientId: string, clientLoanType: any, clientName: string) => {
+    setSelectedLoanTypeToEdit({ clientId, clientLoanType, clientName });
+    setLoanTypeEditForm({
+      customName: clientLoanType.customName || '',
+      notes: clientLoanType.notes || '',
+    });
+    setIsLoanTypeEditModalOpen(true);
+  };
+
+  // Open add task modal
+  const openAddTaskModal = () => {
+    setNewTaskForm({
+      title: '',
+      instructions: '',
+      assigneeRole: 'CLIENT',
+      priority: 'normal',
+      dueInDays: 7,
+      attachmentsAllowed: true,
+      isRequired: true,
+    });
+    setIsAddTaskModalOpen(true);
+  };
+
+  // Open edit task modal
+  const openEditTaskModal = (task: any) => {
+    setSelectedTaskToEdit(task);
+    setNewTaskForm({
+      title: task.title || '',
+      instructions: task.instructions || '',
+      assigneeRole: task.assigneeRole || 'CLIENT',
+      priority: task.priority || 'normal',
+      dueInDays: task.dueInDays || 7,
+      attachmentsAllowed: task.attachmentsAllowed !== undefined ? task.attachmentsAllowed : true,
+      isRequired: task.isRequired !== undefined ? task.isRequired : true,
+    });
+    setIsEditTaskModalOpen(true);
+  };
+
+  // Get tasks for the selected loan type
+  const tasksQuery = useQuery(
+    api.clientLoanTypes.getTasksByClientLoanType,
+    selectedLoanTypeToEdit ? {
+      workspaceId: workspace?.id || "" as any,
+      clientLoanTypeId: selectedLoanTypeToEdit.clientLoanType._id as any, // Use the nested clientLoanType ID
+    } : "skip"
+  );
+
+  // Handle tasks query error gracefully
+  const tasks = tasksQuery && !(tasksQuery instanceof Error) ? tasksQuery : [];
+  const hasTasksError = tasksQuery instanceof Error;
+
+  // Task mutations
+  const createCustomTask = useMutation(api.clientLoanTypes.createCustomClientTask);
+  const updateTask = useMutation(api.clientLoanTypes.updateClientTask);
+  const deleteTask = useMutation(api.clientLoanTypes.deleteClientTask);
+  const updateTaskStatus = useMutation(api.clientLoanTypes.updateClientTaskStatus);
+
+  // Handle add new task
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLoanTypeToEdit || !workspace || !newTaskForm.title.trim()) {
+      alert('Please provide a task title');
+      return;
+    }
+
+    try {
+      await createCustomTask({
+        workspaceId: workspace.id as Id<"workspaces">,
+        clientId: selectedLoanTypeToEdit.clientId as any,
+        clientLoanTypeId: selectedLoanTypeToEdit.clientLoanType._id as any,
+        title: newTaskForm.title,
+        instructions: newTaskForm.instructions,
+        assigneeRole: newTaskForm.assigneeRole,
+        priority: newTaskForm.priority,
+        dueInDays: newTaskForm.dueInDays,
+        attachmentsAllowed: newTaskForm.attachmentsAllowed,
+        isRequired: newTaskForm.isRequired,
+      });
+
+      // Close modal and reset form
+      setIsAddTaskModalOpen(false);
+      setNewTaskForm({
+        title: '',
+        instructions: '',
+        assigneeRole: 'CLIENT',
+        priority: 'normal',
+        dueInDays: 7,
+        attachmentsAllowed: true,
+        isRequired: true,
+      });
+
+      console.log('✅ Task added successfully');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      alert('Error adding task. Please try again.');
+    }
+  };
+
+  // Handle update task
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTaskToEdit || !newTaskForm.title.trim()) {
+      alert('Please provide a task title');
+      return;
+    }
+
+    try {
+      await updateTask({
+        taskId: selectedTaskToEdit._id as any,
+        updates: {
+          title: newTaskForm.title,
+          instructions: newTaskForm.instructions,
+          assigneeRole: newTaskForm.assigneeRole,
+          priority: newTaskForm.priority,
+          dueInDays: newTaskForm.dueInDays,
+          attachmentsAllowed: newTaskForm.attachmentsAllowed,
+          isRequired: newTaskForm.isRequired,
+        },
+      });
+
+      setIsEditTaskModalOpen(false);
+      setSelectedTaskToEdit(null);
+      console.log('✅ Task updated successfully');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      alert('Error updating task. Please try again.');
+    }
+  };
+
+  // Handle delete task
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
+    try {
+      await deleteTask({ taskId: taskId as any });
+      console.log('✅ Task deleted successfully');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      alert('Error deleting task. Please try again.');
+    }
+  };
+
+  // Handle task status change
+  const handleTaskStatusChange = async (taskId: string, newStatus: string) => {
+    try {
+      await updateTaskStatus({
+        taskId: taskId as any,
+        status: newStatus as any,
+      });
+      console.log('✅ Task status updated successfully');
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      alert('Error updating task status. Please try again.');
+    }
+  };
+
+  // Get tasks for a specific loan type
+  const getTasksForLoanType = (clientLoanTypeId: string) => {
+    if (!clientTasksQuery) return [];
+    return clientTasksQuery.filter(task => task.clientLoanTypeId === clientLoanTypeId);
+  };
+
+  // Open edit modal
+  const openEditModal = (client: Client) => {
+    setSelectedClient(client);
+    setEditClientForm({
+      name: client.name,
+      email: client.email,
+      phone: client.phone || '',
+      notes: client.notes || '',
+      status: client.status,
+    });
+    setIsEditModalOpen(true);
+  };
+
+  // Handle assign loan type
+  const handleAssignLoanType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace || !user || !selectedClient) return;
+
+    try {
+      await assignLoanType({
+        workspaceId: workspace.id as Id<"workspaces">,
+        clientId: selectedClient._id as any,
+        loanTypeId: assignLoanTypeForm.loanTypeId as any,
+        customName: assignLoanTypeForm.customName || undefined,
+        notes: assignLoanTypeForm.notes || '',
+        assignedBy: user._id as any,
+      });
+
+      setAssignLoanTypeForm({ loanTypeId: '', customName: '', notes: '' });
+      setIsAssignModalOpen(false);
+      
+      // The UI will automatically update due to Convex's real-time updates
+      // No need for manual refresh
+    } catch (error) {
+      console.error('Error assigning loan type:', error);
+    }
+  };
+
+  // Handle reorder loan types
+  const handleReorderLoanTypes = async (clientId: string, newOrder: number[]) => {
+    if (!workspace) return;
+
+    try {
+      await reorderLoanTypes({
+        workspaceId: workspace.id as Id<"workspaces">,
+        clientId: clientId as any,
+        newOrder: newOrder.map((order, index) => ({ clientLoanTypeId: `demo-${index}` as any, newOrder: order })),
+      });
+    } catch (error) {
+      console.error('Error reordering loan types:', error);
+    }
+  };
+
+  // Handle remove loan type
+  const handleRemoveLoanType = async (clientLoanTypeId: string) => {
+    try {
+      if (isDemoAccount) {
+        // For demo accounts, just remove from local state
+        // In a real app, this would update the UI immediately
+        console.log('Demo mode: Removing loan type assignment', clientLoanTypeId);
+        // You could implement local state management here if needed
+        alert('Demo mode: Loan type would be removed. In production, this would update the database.');
+      } else {
+        // For real accounts, call the Convex mutation
+        await removeLoanType({ clientLoanTypeId: clientLoanTypeId as any });
+        
+        // The UI will automatically update due to Convex's real-time updates
+        // No need for manual refresh
+      }
+      
+      // Close the modal after successful deletion
+      setIsDeleteLoanTypeModalOpen(false);
+      setSelectedLoanTypeToDelete(null);
+    } catch (error) {
+      console.error('Error removing loan type:', error);
+      alert('Error removing loan type. Please try again.');
+    }
+  };
+
+  // Handle move loan type up
+  const handleMoveLoanTypeUp = async (clientId: string, clientLoanTypeId: string) => {
+    try {
+      if (isDemoAccount) {
+        console.log('Demo mode: Moving loan type up', clientLoanTypeId);
+        alert('Demo mode: Loan type would be moved up. In production, this would update the database.');
+        return;
+      }
+
+      // Get current loan types for this client
+      const currentLoanTypes = getClientLoanTypes(clientId);
+      const currentLoanType = currentLoanTypes.find(lt => lt._id === clientLoanTypeId);
+      
+      if (!currentLoanType || currentLoanType.customOrder <= 1) {
+        return; // Already at the top
+      }
+
+      // Find the loan type above this one
+      const aboveLoanType = currentLoanTypes.find(lt => lt.customOrder === currentLoanType.customOrder - 1);
+      
+      if (aboveLoanType) {
+        // Swap the order values
+        await reorderLoanTypes({
+          workspaceId: workspace?._id || "" as any,
+          clientId: clientId as any,
+          newOrder: [
+            { clientLoanTypeId: clientLoanTypeId as any, newOrder: aboveLoanType.customOrder },
+            { clientLoanTypeId: aboveLoanType._id as any, newOrder: currentLoanType.customOrder }
+          ]
+        });
+        
+        console.log('✅ Loan type moved up successfully');
+      }
+    } catch (error) {
+      console.error('Error moving loan type up:', error);
+      alert('Error moving loan type. Please try again.');
+    }
+  };
+
+  // Handle move loan type down
+  const handleMoveLoanTypeDown = async (clientId: string, clientLoanTypeId: string) => {
+    try {
+      if (isDemoAccount) {
+        console.log('Demo mode: Moving loan type down', clientLoanTypeId);
+        alert('Demo mode: Loan type would be moved down. In production, this would update the database.');
+        return;
+      }
+
+      // Get current loan types for this client
+      const currentLoanTypes = getClientLoanTypes(clientId);
+      const currentLoanType = currentLoanTypes.find(lt => lt._id === clientLoanTypeId);
+      
+      if (!currentLoanType || currentLoanType.customOrder >= currentLoanTypes.length) {
+        return; // Already at the bottom
+      }
+
+      // Find the loan type below this one
+      const belowLoanType = currentLoanTypes.find(lt => lt.customOrder === currentLoanType.customOrder + 1);
+      
+      if (belowLoanType) {
+        // Swap the order values
+        await reorderLoanTypes({
+          workspaceId: workspace?._id || "" as any,
+          clientId: clientId as any,
+          newOrder: [
+            { clientLoanTypeId: clientLoanTypeId as any, newOrder: belowLoanType.customOrder },
+            { clientLoanTypeId: belowLoanType._id as any, newOrder: currentLoanType.customOrder }
+          ]
+        });
+        
+        console.log('✅ Loan type moved down successfully');
+      }
+    } catch (error) {
+      console.error('Error moving loan type down:', error);
+      alert('Error moving loan type. Please try again.');
+    }
+  };
+
+  // Helper function to get status badge color
+  const getTaskStatusBadge = (status: string) => {
+    const colors = {
+      'pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'in_progress': 'bg-blue-100 text-blue-800 border-blue-200',
+      'completed': 'bg-green-100 text-green-800 border-green-200',
+      'overdue': 'bg-red-100 text-red-800 border-red-200',
+      'skipped': 'bg-gray-100 text-gray-800 border-gray-200',
+    };
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${colors[status as keyof typeof colors] || colors.pending}`}>
+        {status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1)}
+      </span>
+    );
+  };
+
+  // Helper function to get priority badge color
+  const getPriorityBadge = (priority: string) => {
+    const colors = {
+      'low': 'bg-gray-100 text-gray-800 border-gray-200',
+      'normal': 'bg-blue-100 text-blue-800 border-blue-200',
+      'high': 'bg-orange-100 text-orange-800 border-orange-200',
+      'urgent': 'bg-red-100 text-red-800 border-red-200',
+    };
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${colors[priority as keyof typeof colors] || colors.normal}`}>
+        {priority.charAt(0).toUpperCase() + priority.slice(1)}
+      </span>
+    );
+  };
+
+  // Helper function to format due date
+  const formatDueDate = (dueDate: number | undefined) => {
+    if (!dueDate) return 'No due date';
+    
+    const now = Date.now();
+    const diff = dueDate - now;
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    
+    if (days < 0) return 'Overdue';
+    if (days === 0) return 'Due today';
+    if (days === 1) return 'Due tomorrow';
+    return `Due in ${days} days`;
+  };
+
+  // Helper function to get status badge color
+  const getStatusBadge = (status: string) => {
+    const colors = {
+      'active': 'bg-green-100 text-green-800 border-green-200',
+      'inactive': 'bg-gray-100 text-gray-800 border-gray-200',
+      'prospect': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    };
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${colors[status as keyof typeof colors] || colors.inactive}`}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      'Residential': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Commercial': 'bg-purple-100 text-purple-800 border-purple-200',
+      'Personal': 'bg-green-100 text-green-800 border-green-200',
+    };
+    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  // Handle click outside modal to close
+  const handleModalBackdropClick = (e: React.MouseEvent, modalSetter: (value: boolean) => void) => {
+    if (e.target === e.currentTarget) {
+      modalSetter(false);
+    }
+  };
+
+  // Effect to manage body scroll when modals are open
+  useEffect(() => {
+    const hasOpenModal = isAddModalOpen || isAssignModalOpen || isEditModalOpen || 
+                        isDeleteModalOpen || isDeleteLoanTypeModalOpen || 
+                        isLoanTypeEditModalOpen || isClientDetailModalOpen ||
+                        isAddTaskModalOpen || isEditTaskModalOpen;
+    
+    if (hasOpenModal) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+
+    // Cleanup function
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [isAddModalOpen, isAssignModalOpen, isEditModalOpen, isDeleteModalOpen, 
+       isDeleteLoanTypeModalOpen, isLoanTypeEditModalOpen, isClientDetailModalOpen,
+       isAddTaskModalOpen, isEditTaskModalOpen]);
+
+  // Handle save loan type assignment changes
+  const handleSaveLoanTypeChanges = async () => {
+    if (!selectedLoanTypeToEdit) return;
+
+    try {
+      await updateClientLoanTypeAssignment({
+        clientLoanTypeId: selectedLoanTypeToEdit.clientLoanType._id as any,
+        updates: {
+          customName: loanTypeEditForm.customName || undefined,
+          notes: loanTypeEditForm.notes || undefined,
+        },
+      });
+
+      // Close modal and reset form
+      setIsLoanTypeEditModalOpen(false);
+      setSelectedLoanTypeToEdit(null);
+      setLoanTypeEditForm({ customName: '', notes: '' });
+      
+      console.log('✅ Loan type assignment updated successfully');
+    } catch (error) {
+      console.error('Error updating loan type assignment:', error);
+      alert('Error updating loan type assignment. Please try again.');
+    }
+  };
+
+  return (
+    <div className="w-full px-4 md:px-6 lg:px-8 py-6 space-y-6">
+      {/* Premium Header */}
+      <div className="relative animate-fade-in-down">
+        <div className="absolute inset-0 bg-gradient-to-r from-brand-orange/10 to-brand-orange-dark/10 rounded-3xl"></div>
+        <div className="relative bg-white/80 backdrop-blur-sm border border-white/20 rounded-3xl p-6 shadow-2xl">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl lg:text-4xl mb-2 font-bold text-gray-800">Clients</h1>
+              <p className="text-lg text-gray-600">Manage your client relationships and loan type assignments</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => setIsAssignModalOpen(true)}
+                className="bg-white/80 backdrop-blur-sm text-brand-orange px-6 py-3 rounded-lg font-semibold hover:bg-white transition-all duration-200 border border-brand-orange/30"
+              >
+                Assign Loan Type
+              </button>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-brand-orange hover:bg-brand-orange-dark text-white px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl font-semibold"
+              >
+                Add Client
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Search clients by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+          />
+        </div>
+        <div className="sm:w-48">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="prospect">Prospect</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Loading State for Real Data */}
+      {!isDemoAccount && !clients && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-orange mr-3"></div>
+            <p className="text-gunmetal-light">Loading clients from database...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Clients Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {filteredClients.map((client) => {
+          const clientLoanTypes = getClientLoanTypes(client._id);
+          
+          return (
+            <div key={client._id} className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300">
+              {/* Client Header */}
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-brand-orange to-brand-orange-dark rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-lg font-bold">
+                    {client.name.charAt(0)}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-bold text-gunmetal truncate hover:text-brand-orange transition-colors duration-200">
+                    {client.name}
+                  </h3>
+                  <p className="text-sm text-gunmetal-light truncate">{client.email}</p>
+                </div>
+                {getStatusBadge(client.status)}
+              </div>
+
+              {/* Client Details */}
+              <div className="space-y-3 mb-6">
+                {client.phone && (
+                  <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>{client.phone}</span>
+                  </div>
+                )}
+                <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Added {formatDate(client.createdAt)}</span>
+                </div>
+              </div>
+
+              {/* Loan Types Section */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-lg font-semibold text-gunmetal">Loan Types</h4>
+                  <span className="text-sm text-gunmetal-light bg-white/60 px-2 py-1 rounded-full">
+                    {clientLoanTypes.length} assigned
+                  </span>
+                </div>
+                
+                {clientLoanTypes.length > 0 ? (
+                  <div className="space-y-3">
+                    {clientLoanTypes
+                      .sort((a, b) => a.customOrder - b.customOrder)
+                      .map((clientLoanType) => (
+                        <div 
+                          key={clientLoanType._id} 
+                          className="bg-white/60 backdrop-blur-sm rounded-xl p-3 border border-white/20 cursor-pointer hover:bg-white/80 hover:shadow-md transition-all duration-200"
+                          onClick={() => openLoanTypeEditModal(client._id, clientLoanType, client.name)}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h5 className="font-semibold text-gunmetal text-sm">
+                              {clientLoanType.customName || clientLoanType.loanType?.name}
+                            </h5>
+                            <div className="flex items-center space-x-2">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getCategoryColor(clientLoanType.loanType?.category || '')}`}>
+                                {clientLoanType.loanType?.category}
+                              </span>
+                              <button
+                                onClick={() => openDeleteLoanTypeModal(
+                                  clientLoanType._id,
+                                  clientLoanType.customName || clientLoanType.loanType?.name || 'Unknown Loan Type',
+                                  client.name
+                                )}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors duration-200"
+                                title="Remove loan type"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gunmetal-light mb-2 line-clamp-2">
+                            {clientLoanType.loanType?.description}
+                          </p>
+                          <div className="flex items-center justify-between text-xs text-gunmetal-light">
+                            <span className="text-brand-orange font-medium">
+                              {'taskCount' in clientLoanType ? (clientLoanType.taskCount || 0) : 'Tasks will be calculated'} tasks
+                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-gunmetal-light">Order: {clientLoanType.customOrder}</span>
+                              <div className="flex space-x-1">
+                                <button
+                                  onClick={() => handleMoveLoanTypeUp(client._id, clientLoanType._id)}
+                                  disabled={clientLoanType.customOrder === 1}
+                                  className={`p-1 rounded transition-colors duration-200 ${
+                                    clientLoanType.customOrder === 1 
+                                      ? 'text-gray-300 cursor-not-allowed' 
+                                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                                  }`}
+                                  title="Move up"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleMoveLoanTypeDown(client._id, clientLoanType._id)}
+                                  disabled={clientLoanType.customOrder === clientLoanTypes.length}
+                                  className={`p-1 rounded transition-colors duration-200 ${
+                                    clientLoanType.customOrder === clientLoanTypes.length 
+                                      ? 'text-gray-300 cursor-not-allowed' 
+                                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                                  }`}
+                                  title="Move down"
+                                >
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-white/40 rounded-xl border border-white/20">
+                    <div className="text-3xl mb-2">🏠</div>
+                    <p className="text-gunmetal-light text-sm">No loan types assigned</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setSelectedClient(client);
+                    setIsAssignModalOpen(true);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-brand-orange/20 to-brand-orange-dark/20 text-brand-orange px-3 py-2 rounded-xl font-semibold hover:from-brand-orange/30 hover:to-brand-orange-dark/30 transition-all duration-200 border border-brand-orange/30 text-sm"
+                >
+                  Assign
+                </button>
+                <button
+                  onClick={() => openEditModal(client)}
+                  className="flex-1 bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-600 px-3 py-2 rounded-xl font-semibold hover:from-blue-500/30 hover:to-blue-600/30 transition-all duration-200 border border-blue-500/30 text-sm"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedClient(client);
+                    setIsClientDetailModalOpen(true);
+                  }}
+                  className="flex-1 bg-gradient-to-r from-gunmetal/20 to-gunmetal-dark/20 text-gunmetal px-3 py-2 rounded-xl font-semibold hover:from-gunmetal/30 hover:to-gunmetal-dark/30 transition-all duration-200 border border-gunmetal/30 text-sm"
+                >
+                  View
+                </button>
+                <button
+                  onClick={() => openDeleteModal(client)}
+                  className="flex-1 bg-gradient-to-r from-red-500/20 to-red-600/20 text-red-600 px-3 py-2 rounded-xl font-semibold hover:from-red-500/30 hover:to-red-600/30 transition-all duration-200 border border-red-500/30 text-sm"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Empty State */}
+      {filteredClients.length === 0 && (
+        <div className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-12 border border-white/30 shadow-xl text-center hover:shadow-2xl transition-all duration-300">
+          <div className="text-6xl mb-4">👥</div>
+          <h3 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent mb-2">
+            No Clients Found
+          </h3>
+          <p className="text-gunmetal-light text-lg mb-6">
+            {searchTerm || statusFilter
+              ? 'Try adjusting your filters to see more results' 
+              : 'Create your first client to get started'
+            }
+          </p>
+          {!searchTerm && !statusFilter && (
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+            >
+              Create First Client
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      {isAddModalOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+          onClick={(e) => handleModalBackdropClick(e, setIsAddModalOpen)}
+        >
+          <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl mx-4 relative">
+            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pt-2 pb-4 border-b border-gray-200">
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                Add New Client
+              </h2>
+              <button
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200 p-1 bg-white rounded-full hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddClient} className="space-y-4 sm:space-y-6">
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  value={addClientForm.name}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, name: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  placeholder="Enter client name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  value={addClientForm.email}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, email: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  placeholder="Enter client email"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={addClientForm.phone}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, phone: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  placeholder="Enter phone number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  rows={3}
+                  value={addClientForm.notes}
+                  onChange={(e) => setAddClientForm({ ...addClientForm, notes: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base resize-none"
+                  placeholder="Enter any additional notes"
+                />
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sticky bottom-0 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200 text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-base"
+                >
+                  Add Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Loan Type Modal */}
+      {isAssignModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl mx-4 relative">
+            <div className="flex justify-between items-start mb-6 sticky top-0 bg-white pt-2 pb-4 border-b border-gray-200">
+              <div className="flex-1 pr-4">
+                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent mb-2">
+                  Assign Loan Type to {selectedClient.name}
+                </h2>
+                <p className="text-sm text-gunmetal-light">
+                  You can assign the same loan type multiple times with different custom names
+                </p>
+              </div>
+              <button
+                onClick={() => setIsAssignModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200 p-1 flex-shrink-0 bg-white rounded-full hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAssignLoanType} className="space-y-4 sm:space-y-6">
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Loan Type *
+                </label>
+                <select
+                  name="loanTypeId"
+                  required
+                  value={assignLoanTypeForm.loanTypeId}
+                  onChange={(e) => setAssignLoanTypeForm({ ...assignLoanTypeForm, loanTypeId: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                >
+                  <option value="">Select a loan type...</option>
+                  {(isDemoAccount ? demoLoanTypes : loanTypes).map((loanType) => (
+                    <option key={loanType._id} value={loanType._id}>
+                      {loanType.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Custom Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  name="customName"
+                  placeholder="e.g., John's Primary Mortgage, HELOC #2, Refinance Loan"
+                  value={assignLoanTypeForm.customName}
+                  onChange={(e) => setAssignLoanTypeForm({ ...assignLoanTypeForm, customName: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                />
+                <p className="text-xs text-gunmetal-light mt-1">
+                  Customize the name for this client. For duplicate loan types, consider names like "Primary Mortgage", "HELOC #2", or "Refinance Loan" to distinguish them.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  rows={3}
+                  placeholder="Any special notes about this assignment..."
+                  value={assignLoanTypeForm.notes}
+                  onChange={(e) => setAssignLoanTypeForm({ ...assignLoanTypeForm, notes: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base resize-none"
+                />
+              </div>
+
+              <div className="bg-gradient-to-r from-brand-orange/5 to-brand-orange-dark/5 border border-brand-orange/20 rounded-lg p-3 sm:p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-brand-orange text-lg sm:text-xl flex-shrink-0">ℹ️</div>
+                  <div className="text-sm text-gunmetal-light">
+                    <p className="font-medium text-gunmetal mb-1">What happens when you assign a loan type?</p>
+                    <ul className="space-y-1 text-xs">
+                      <li>• All associated tasks are automatically cloned to the client profile</li>
+                      <li>• Tasks are assigned based on the original template settings</li>
+                      <li>• You can customize task names, due dates, and instructions per client</li>
+                      <li>• The loan type can be renamed for client-specific needs</li>
+                      <li>• You can assign the same loan type multiple times (e.g., Primary + HELOC)</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sticky bottom-0 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setIsAssignModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200 text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-base"
+                >
+                  Assign Loan Type
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Client Modal */}
+      {isEditModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                Edit Client: {selectedClient.name}
+              </h2>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleEditClient} className="space-y-6">
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editClientForm.name}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, name: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={editClientForm.email}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, email: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={editClientForm.phone}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, phone: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={editClientForm.notes}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, notes: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                />
+              </div>
+
+              <div>
+                <label className="block text-lg font-semibold text-gunmetal mb-2">
+                  Status
+                </label>
+                <select
+                  value={editClientForm.status}
+                  onChange={(e) => setEditClientForm({ ...editClientForm, status: e.target.value as any })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="prospect">Prospect</option>
+                </select>
+              </div>
+
+              <div className="flex space-x-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  Update Client
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                ⚠️ Delete Client
+              </h2>
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-red-600 text-xl">🚨</div>
+                  <div className="text-sm text-red-800">
+                    <p className="font-semibold mb-2">This action cannot be undone!</p>
+                    <p>Deleting this client will permanently remove:</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>All client information</li>
+                      <li>Assigned loan types</li>
+                      <li>Associated tasks</li>
+                      <li>Document history</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">Client to be deleted:</h3>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold">{selectedClient.name.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{selectedClient.name}</p>
+                    <p className="text-sm text-gray-600">{selectedClient.email}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteClient(selectedClient._id)}
+                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Delete Forever
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Loan Type Confirmation Modal */}
+      {isDeleteLoanTypeModalOpen && selectedLoanTypeToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-700 bg-clip-text text-transparent">
+                ⚠️ Remove Loan Type
+              </h2>
+              <button
+                onClick={() => {
+                  setIsDeleteLoanTypeModalOpen(false);
+                  setSelectedLoanTypeToDelete(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <div className="text-red-600 text-xl">🚨</div>
+                  <div className="text-sm text-red-800">
+                    <p className="font-semibold mb-2">This action cannot be undone!</p>
+                    <p>Removing this loan type will permanently delete:</p>
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>The loan type assignment</li>
+                      <li>All associated tasks for this loan type</li>
+                      <li>Task progress and history</li>
+                      <li>Custom notes and configurations</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h3 className="font-semibold text-gray-900 mb-2">Loan Type to be removed:</h3>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold">📋</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{selectedLoanTypeToDelete.name}</p>
+                    <p className="text-sm text-gray-600">Client: {selectedLoanTypeToDelete.clientName}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteLoanTypeModalOpen(false);
+                  setSelectedLoanTypeToDelete(null);
+                }}
+                className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemoveLoanType(selectedLoanTypeToDelete.id)}
+                className="flex-1 bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+              >
+                Remove Forever
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loan Type Edit Modal */}
+      {isLoanTypeEditModalOpen && selectedLoanTypeToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl mx-4 relative">
+            <div className="flex justify-between items-start mb-6 sticky top-0 bg-white pt-2 pb-4 border-b border-gray-200">
+              <div className="flex-1 pr-4">
+                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-brand-orange to-brand-orange-dark bg-clip-text text-transparent mb-2">
+                  ✏️ Edit Loan Type Assignment
+                </h2>
+                <p className="text-gunmetal-light text-sm">
+                  Manage loan type details and associated tasks for {selectedLoanTypeToEdit.clientName}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setIsLoanTypeEditModalOpen(false);
+                  setSelectedLoanTypeToEdit(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200 p-1 flex-shrink-0 bg-white rounded-full hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* Left Column - Loan Type Details */}
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-brand-orange/5 to-brand-orange-dark/5 border border-brand-orange/20 rounded-xl p-4">
+                  <h3 className="text-lg font-semibold text-gunmetal mb-4 flex items-center">
+                    <span className="text-brand-orange mr-2">🏠</span>
+                    Loan Type Information
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-2">Custom Name</label>
+                      <input
+                        type="text"
+                        value={loanTypeEditForm.customName}
+                        onChange={(e) => setLoanTypeEditForm({ ...loanTypeEditForm, customName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-orange focus:border-transparent text-sm"
+                        placeholder="Enter custom name for this loan type"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-2">Notes</label>
+                      <textarea
+                        value={loanTypeEditForm.notes}
+                        onChange={(e) => setLoanTypeEditForm({ ...loanTypeEditForm, notes: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-orange focus:border-transparent text-sm resize-none"
+                        placeholder="Enter any notes about this loan type assignment"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-2">Base Loan Type</label>
+                      <input
+                        type="text"
+                        value={selectedLoanTypeToEdit.clientLoanType.loanType?.name || 'Unknown'}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-2">Category</label>
+                      <input
+                        type="text"
+                        value={selectedLoanTypeToEdit.clientLoanType.loanType?.category || 'Unknown'}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-2">Description</label>
+                      <textarea
+                        value={selectedLoanTypeToEdit.clientLoanType.loanType?.description || ''}
+                        disabled
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-2">Current Order</label>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-lg font-semibold text-brand-orange">
+                          {selectedLoanTypeToEdit.clientLoanType.customOrder}
+                        </span>
+                        <span className="text-sm text-gray-500">of {getClientLoanTypes(selectedLoanTypeToEdit.clientId).length}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Tasks Management */}
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-green-800 flex items-center">
+                      <span className="text-green-600 mr-2">✅</span>
+                      Associated Tasks
+                    </h3>
+                    <button
+                      onClick={openAddTaskModal}
+                      className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
+                    >
+                      + Add Task
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {hasTasksError ? (
+                      <div className="bg-yellow-50 rounded-lg p-4 text-center border border-yellow-200">
+                        <div className="text-2xl mb-2">⚠️</div>
+                        <p className="text-yellow-700 text-sm font-medium mb-1">
+                          Error loading tasks
+                        </p>
+                        <p className="text-yellow-600 text-xs mb-3">
+                          There was an issue loading tasks. You can still add new tasks.
+                        </p>
+                        <button
+                          onClick={openAddTaskModal}
+                          className="bg-yellow-600 text-white px-3 py-2 rounded-lg hover:bg-yellow-700 transition-colors duration-200 text-sm font-medium"
+                        >
+                          + Add First Task
+                        </button>
+                      </div>
+                    ) : tasks && tasks.length > 0 ? (
+                      tasks.map((task) => (
+                        <div key={task._id} className="bg-white rounded-lg p-4 border border-green-200">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-green-900 text-sm mb-1">{task.title}</h4>
+                              <p className="text-green-700 text-xs mb-2">{task.instructions}</p>
+                              <div className="flex items-center space-x-2 mb-2">
+                                {getTaskStatusBadge(task.status)}
+                                {getPriorityBadge(task.priority)}
+                                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                                  {task.assigneeRole}
+                                </span>
+                              </div>
+                              <p className="text-xs text-green-600">
+                                {formatDueDate(task.dueDate)}
+                              </p>
+                            </div>
+                            <div className="flex items-center space-x-1 ml-2">
+                              <button
+                                onClick={() => openEditTaskModal(task)}
+                                className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors duration-200"
+                                title="Edit task"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(task._id)}
+                                className="text-red-600 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors duration-200"
+                                title="Delete task"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {/* Task Actions */}
+                          <div className="flex items-center justify-between pt-2 border-t border-green-100">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-green-600">Status:</span>
+                              <select
+                                value={task.status}
+                                onChange={(e) => handleTaskStatusChange(task._id, e.target.value)}
+                                className="text-xs border border-green-200 rounded px-2 py-1 bg-white text-green-700 focus:outline-none focus:ring-1 focus:ring-green-500"
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="skipped">Skipped</option>
+                              </select>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2 text-xs text-green-600">
+                              {task.attachmentsAllowed && (
+                                <span className="flex items-center">
+                                  📎 Attachments allowed
+                                </span>
+                              )}
+                              {task.isRequired && (
+                                <span className="flex items-center">
+                                  ⚠️ Required
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bg-white rounded-lg p-4 text-center border border-green-200">
+                        <div className="text-2xl mb-2">📋</div>
+                        <p className="text-green-700 text-sm font-medium mb-1">
+                          No tasks yet
+                        </p>
+                        <p className="text-green-600 text-xs mb-3">
+                          Click "Add Task" to create the first task for this loan type
+                        </p>
+                        <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                          <h4 className="font-semibold text-green-800 mb-2 text-sm">💡 Task Management Features</h4>
+                          <ul className="text-xs text-green-700 space-y-1 text-left">
+                            <li>• Tasks are automatically created when loan types are assigned</li>
+                            <li>• You can add custom tasks specific to this client</li>
+                            <li>• Task status and progress are tracked in real-time</li>
+                            <li>• Documents and notes can be attached to tasks</li>
+                            <li>• Set due dates and priority levels for each task</li>
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Task Statistics */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <span className="text-blue-600 mr-2">📊</span>
+                    Task Overview
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white rounded-lg p-3 text-center border border-blue-200">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {hasTasksError ? '?' : tasks.length}
+                      </div>
+                      <div className="text-xs text-blue-600">Total Tasks</div>
+                    </div>
+                    
+                    <div className="bg-white rounded-lg p-3 text-center border border-blue-200">
+                      <div className="text-2xl font-bold text-green-600">
+                        {hasTasksError ? '?' : tasks.filter(task => task.status === 'completed').length}
+                      </div>
+                      <div className="text-xs text-green-600">Completed</div>
+                    </div>
+                  </div>
+                  
+                  {!hasTasksError && tasks.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <div className="text-xs text-blue-700">
+                        <span className="font-medium">Status Breakdown:</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex justify-between">
+                          <span>Pending:</span>
+                          <span className="font-medium">{tasks.filter(t => t.status === 'pending').length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>In Progress:</span>
+                          <span className="font-medium">{tasks.filter(t => t.status === 'in_progress').length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Overdue:</span>
+                          <span className="font-medium">{tasks.filter(t => t.status === 'overdue').length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Skipped:</span>
+                          <span className="font-medium">{tasks.filter(t => t.status === 'skipped').length}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 pt-6 border-t border-gray-200 sticky bottom-0 bg-white">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLoanTypeEditModalOpen(false);
+                  setSelectedLoanTypeToEdit(null);
+                }}
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors duration-200 text-sm sm:text-base"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveLoanTypeChanges}
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-brand-orange text-white rounded-lg font-semibold hover:bg-brand-orange-dark transition-colors duration-200 text-sm sm:text-base"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Client Detail Modal */}
+      {isClientDetailModalOpen && selectedClient && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl mx-4 relative">
+            <div className="flex justify-between items-start mb-6 sticky top-0 bg-white pt-2 pb-4 border-b border-gray-200">
+              <div className="flex-1 pr-4">
+                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent mb-2">
+                  📋 Client Details: {selectedClient.name}
+                </h2>
+                <p className="text-gunmetal-light text-sm">
+                  Manage client information, loan types, and tasks
+                </p>
+              </div>
+              <button
+                onClick={() => setIsClientDetailModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200 p-1 flex-shrink-0 bg-white rounded-full hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+              {/* Left Column - Client Information */}
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-brand-orange/5 to-brand-orange-dark/5 border border-brand-orange/20 rounded-xl p-4">
+                  <h3 className="text-lg font-semibold text-gunmetal mb-3 flex items-center">
+                    <span className="text-brand-orange mr-2">👤</span>
+                    Client Information
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={selectedClient.name}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={selectedClient.email}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-1">Phone</label>
+                      <input
+                        type="tel"
+                        value={selectedClient.phone || 'Not provided'}
+                        disabled
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-1">Status</label>
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg">
+                        {getStatusBadge(selectedClient.status)}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gunmetal mb-1">Notes</label>
+                      <textarea
+                        value={selectedClient.notes || 'No notes'}
+                        disabled
+                        rows={3}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 text-sm resize-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Loan Types Summary */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <span className="text-blue-600 mr-2">🏠</span>
+                    Loan Types ({getClientLoanTypes(selectedClient._id).length})
+                  </h3>
+                  
+                  <div className="space-y-2">
+                    {getClientLoanTypes(selectedClient._id).map((clientLoanType, index) => (
+                      <div key={clientLoanType._id} className="bg-white rounded-lg p-3 border border-blue-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-blue-900 text-sm">
+                              {clientLoanType.customName || clientLoanType.loanType?.name || 'Unknown Loan Type'}
+                            </p>
+                            <p className="text-xs text-blue-600">
+                              {clientLoanType.loanType?.category || 'Unknown Category'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-blue-600">
+                              {clientLoanType.taskCount || 0} tasks
+                            </p>
+                            <p className="text-xs text-blue-500">
+                              Order: {clientLoanType.customOrder}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {getClientLoanTypes(selectedClient._id).length === 0 && (
+                      <div className="text-center py-4 text-blue-600 text-sm">
+                        No loan types assigned yet
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Tasks Management */}
+              <div className="space-y-4">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-green-800 flex items-center">
+                      <span className="text-green-600 mr-2">✅</span>
+                      Client Tasks
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setIsClientDetailModalOpen(false);
+                        // TODO: Open add task modal for this client
+                        console.log('Add task for client:', selectedClient._id);
+                      }}
+                      className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm font-medium"
+                    >
+                      + Add Task
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {/* TODO: Display actual client tasks here */}
+                    <div className="bg-white rounded-lg p-4 text-center border border-green-200">
+                      <div className="text-2xl mb-2">📋</div>
+                      <p className="text-green-700 text-sm font-medium mb-1">
+                        Task Management Coming Soon
+                      </p>
+                      <p className="text-green-600 text-xs">
+                        View and manage all tasks for this client
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Advisor Tasks */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4">
+                  <h3 className="text-lg font-semibold text-purple-800 mb-3 flex items-center">
+                    <span className="text-purple-600 mr-2">👨‍💼</span>
+                    Advisor Tasks
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {/* TODO: Display actual advisor tasks here */}
+                    <div className="bg-white rounded-lg p-4 text-center border border-purple-200">
+                      <div className="text-2xl mb-2">📝</div>
+                      <p className="text-purple-700 text-sm font-medium mb-1">
+                        Advisor Task Management
+                      </p>
+                      <p className="text-purple-600 text-xs">
+                        Tasks assigned to advisors for this client
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                    <span className="text-gray-600 mr-2">⚡</span>
+                    Quick Actions
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setIsClientDetailModalOpen(false);
+                        setSelectedClient(selectedClient);
+                        setIsAssignModalOpen(true);
+                      }}
+                      className="bg-brand-orange text-white px-3 py-2 rounded-lg hover:bg-brand-orange-dark transition-colors duration-200 text-sm font-medium"
+                    >
+                      Assign Loan Type
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setIsClientDetailModalOpen(false);
+                        openEditModal(selectedClient);
+                      }}
+                      className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+                    >
+                      Edit Client
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200 sticky bottom-0 bg-white">
+              <button
+                type="button"
+                onClick={() => setIsClientDetailModalOpen(false)}
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-semibold hover:bg-gray-200 transition-colors duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Task Modal */}
+      {isAddTaskModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl mx-4 relative">
+            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pt-2 pb-4 border-b border-gray-200">
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                ✨ Add New Task
+              </h2>
+              <button
+                onClick={() => setIsAddTaskModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200 p-1 bg-white rounded-full hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddTask} className="space-y-4 sm:space-y-6">
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Task Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  value={newTaskForm.title}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  placeholder="Enter task title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Instructions
+                </label>
+                <textarea
+                  name="instructions"
+                  value={newTaskForm.instructions}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, instructions: e.target.value })}
+                  rows={3}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base resize-none"
+                  placeholder="Enter task instructions"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-base font-semibold text-gunmetal mb-2">
+                    Assignee Role
+                  </label>
+                  <select
+                    name="assigneeRole"
+                    value={newTaskForm.assigneeRole}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, assigneeRole: e.target.value as any })}
+                    className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  >
+                    <option value="CLIENT">Client</option>
+                    <option value="ADVISOR">Advisor</option>
+                    <option value="STAFF">Staff</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-base font-semibold text-gunmetal mb-2">
+                    Priority
+                  </label>
+                  <select
+                    name="priority"
+                    value={newTaskForm.priority}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, priority: e.target.value as any })}
+                    className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  >
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-base font-semibold text-gunmetal mb-2">
+                  Due In (Days)
+                </label>
+                <input
+                  type="number"
+                  name="dueInDays"
+                  min="1"
+                  max="365"
+                  required
+                  value={newTaskForm.dueInDays}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, dueInDays: parseInt(e.target.value) || 7 })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                />
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="attachmentsAllowed"
+                    checked={newTaskForm.attachmentsAllowed}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, attachmentsAllowed: e.target.checked })}
+                    className="mr-2 text-brand-orange focus:ring-brand-orange border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gunmetal">Allow file attachments</span>
+                </label>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="isRequired"
+                    checked={newTaskForm.isRequired}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, isRequired: e.target.checked })}
+                    className="mr-2 text-brand-orange focus:ring-brand-orange border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gunmetal">Required task</span>
+                </label>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sticky bottom-0 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setIsAddTaskModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200 text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-base"
+                >
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {isEditTaskModalOpen && selectedTaskToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 lg:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl mx-4 relative">
+            <div className="flex justify-between items-center mb-6 sticky top-0 bg-white pt-2 pb-4 border-b border-gray-200">
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent">
+                ✏️ Edit Task
+              </h2>
+              <button
+                onClick={() => setIsEditTaskModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl transition-colors duration-200 p-1 bg-white rounded-full hover:bg-gray-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateTask} className="space-y-4 sm:space-y-6">
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Task Title *
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  required
+                  value={newTaskForm.title}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, title: e.target.value })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  placeholder="Enter task title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base sm:text-lg font-semibold text-gunmetal mb-2">
+                  Instructions
+                </label>
+                <textarea
+                  name="instructions"
+                  value={newTaskForm.instructions}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, instructions: e.target.value })}
+                  rows={3}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base resize-none"
+                  placeholder="Enter task instructions"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-base font-semibold text-gunmetal mb-2">
+                    Assignee Role
+                  </label>
+                  <select
+                    name="assigneeRole"
+                    value={newTaskForm.assigneeRole}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, assigneeRole: e.target.value as any })}
+                    className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  >
+                    <option value="CLIENT">Client</option>
+                    <option value="ADVISOR">Advisor</option>
+                    <option value="STAFF">Staff</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-base font-semibold text-gunmetal mb-2">
+                    Priority
+                  </label>
+                  <select
+                    name="priority"
+                    value={newTaskForm.priority}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, priority: e.target.value as any })}
+                    className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                  >
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-base font-semibold text-gunmetal mb-2">
+                  Due In (Days)
+                </label>
+                <input
+                  type="number"
+                  name="dueInDays"
+                  min="1"
+                  max="365"
+                  required
+                  value={newTaskForm.dueInDays}
+                  onChange={(e) => setNewTaskForm({ ...newTaskForm, dueInDays: parseInt(e.target.value) || 7 })}
+                  className="w-full bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200 text-base"
+                />
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="attachmentsAllowed"
+                    checked={newTaskForm.attachmentsAllowed}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, attachmentsAllowed: e.target.checked })}
+                    className="mr-2 text-brand-orange focus:ring-brand-orange border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gunmetal">Allow file attachments</span>
+                </label>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    name="isRequired"
+                    checked={newTaskForm.isRequired}
+                    onChange={(e) => setNewTaskForm({ ...newTaskForm, isRequired: e.target.checked })}
+                    className="mr-2 text-brand-orange focus:ring-brand-orange border-gray-300 rounded"
+                  />
+                  <span className="text-sm text-gunmetal">Required task</span>
+                </label>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sticky bottom-0 bg-white">
+                <button
+                  type="button"
+                  onClick={() => setIsEditTaskModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200 text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-base"
+                >
+                  Update Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Clients;

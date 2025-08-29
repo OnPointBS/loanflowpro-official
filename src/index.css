@@ -1,0 +1,380 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900 font-premium;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-orange hover:bg-brand-orange-dark text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  }
+  
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent;
+  }
+
+  /* Premium Dashboard Components */
+  .premium-card {
+    @apply relative bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl border border-white/30 shadow-xl transition-all duration-300 hover:shadow-2xl hover:scale-[1.02];
+  }
+
+  .premium-card-bg {
+    @apply absolute inset-0 bg-gradient-to-r from-white/80 to-white/60 backdrop-blur-sm rounded-2xl border border-white/20 shadow-2xl transition-all duration-300;
+  }
+
+  .premium-header {
+    @apply text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent;
+  }
+
+  .premium-subheader {
+    @apply text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent;
+  }
+
+  .premium-text {
+    @apply text-gunmetal-light leading-relaxed;
+  }
+
+  .premium-button {
+    @apply bg-gradient-to-r from-brand-orange to-brand-orange-dark text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200;
+  }
+
+  .premium-select {
+    @apply bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200;
+  }
+
+  .premium-stat-value {
+    @apply text-3xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent;
+  }
+
+  .premium-icon-container {
+    @apply p-4 rounded-2xl shadow-lg;
+  }
+
+  .premium-priority-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-md;
+  }
+
+  .premium-task-item {
+    @apply flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:shadow-md transition-all duration-200;
+  }
+
+  .premium-status-indicator {
+    @apply w-4 h-4 rounded-full shadow-lg;
+  }
+
+  .premium-status-item {
+    @apply flex items-center space-x-4 p-4 rounded-xl border hover:shadow-lg transition-all duration-200;
+  }
+
+  /* Line clamp utilities for text truncation */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .line-clamp-4 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+  }
+
+  /* Card content utilities */
+  .card-content {
+    @apply space-y-4;
+  }
+
+  .card-section {
+    @apply bg-white/40 rounded-lg p-3 border border-white/20;
+  }
+
+  .card-label {
+    @apply text-xs font-semibold text-gunmetal-light uppercase tracking-wide mb-2;
+  }
+
+  .card-value {
+    @apply text-sm font-bold text-gunmetal bg-white/60 px-3 py-1.5 rounded-lg border border-white/30 shadow-sm;
+  }
+
+  .card-badge {
+    @apply inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-bold border;
+  }
+
+  .card-button {
+    @apply text-xs font-semibold transition-all duration-200 hover:scale-105 px-3 py-2 rounded-lg border;
+  }
+}
+
+@layer utilities {
+  /* Custom shadows */
+  .shadow-3xl {
+    box-shadow: 0 35px 60px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  /* Glassmorphism effects */
+  .glass {
+    @apply bg-white/20 backdrop-blur-md border border-white/30;
+  }
+
+  .glass-dark {
+    @apply bg-gunmetal/20 backdrop-blur-md border border-gunmetal/30;
+  }
+
+  /* Premium gradients */
+  .gradient-brand {
+    @apply bg-gradient-to-r from-brand-orange to-brand-orange-dark;
+  }
+
+  .gradient-gunmetal {
+    @apply bg-gradient-to-r from-gunmetal to-gunmetal-dark;
+  }
+
+  .gradient-blue {
+    @apply bg-gradient-to-r from-blue-500 to-blue-600;
+  }
+
+  .gradient-emerald {
+    @apply bg-gradient-to-r from-emerald-500 to-emerald-600;
+  }
+
+  .gradient-purple {
+    @apply bg-gradient-to-r from-purple-500 to-purple-600;
+  }
+
+  /* Hover animations */
+  .hover-lift {
+    @apply transition-all duration-300 hover:shadow-2xl hover:scale-105;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300 hover:shadow-lg hover:shadow-brand-orange/25;
+  }
+
+  /* Text gradients */
+  .text-gradient-brand {
+    @apply bg-gradient-to-r from-brand-orange to-brand-orange-dark bg-clip-text text-transparent;
+  }
+
+  .text-gradient-gunmetal {
+    @apply bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent;
+  }
+
+  /* Premium borders */
+  .border-premium {
+    @apply border-2 border-white/20;
+  }
+
+  .border-premium-hover {
+    @apply border-2 border-brand-orange/30;
+  }
+
+  /* Premium backgrounds */
+  .bg-premium {
+    @apply bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm;
+  }
+
+  .bg-premium-hover {
+    @apply bg-gradient-to-br from-white/95 to-white/80 backdrop-blur-sm;
+  }
+}
+
+/* Fixed Left Navigation - High specificity */
+.app-container .nav-container {
+  position: fixed !important;
+  top: 0 !important; /* Changed from 80px to 0 to go all the way to top */
+  left: 0 !important;
+  bottom: 0 !important;
+  width: 280px !important;
+  z-index: 9998 !important;
+  background: linear-gradient(180deg, #1a1a1a 0%, #2d2d2d 100%) !important;
+  border-right: 2px solid #D4AF37 !important;
+  overflow-y: auto !important; /* Allow nav to scroll if needed */
+  box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3) !important;
+  transition: width 0.3s ease-in-out !important;
+}
+
+/* Luxury Landing Page Animations */
+@keyframes float {
+  0%, 100% { 
+    transform: translateY(0px) rotate(0deg); 
+  }
+  50% { 
+    transform: translateY(-20px) rotate(180deg); 
+  }
+}
+
+@keyframes slideUp {
+  0% { 
+    transform: translateY(50px); 
+    opacity: 0; 
+  }
+  100% { 
+    transform: translateY(0px); 
+    opacity: 1; 
+  }
+}
+
+@keyframes fadeIn {
+  0% { 
+    opacity: 0; 
+    transform: translateY(30px); 
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0px); 
+  }
+}
+
+@keyframes shimmer {
+  0% { 
+    background-position: -200% 0; 
+  }
+  100% { 
+    background-position: 200% 0; 
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slideUp 1s ease-out forwards;
+}
+
+.animate-slide-up-delay {
+  animation: slideUp 1s ease-out 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-slide-up-delay-2 {
+  animation: slideUp 1s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+.animate-slide-up-delay-3 {
+  animation: slideUp 1s ease-out 0.6s forwards;
+  opacity: 0;
+}
+
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-fade-in {
+  opacity: 1;
+  transform: translateY(0px);
+}
+
+.feature-card {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  /* Prevent overlapping during animations */
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  /* Ensure cards don't overlap during hover */
+  z-index: 1;
+}
+
+.feature-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  /* Bring hovered card to front */
+  z-index: 10;
+}
+
+/* Ensure grid items don't overlap */
+.feature-card {
+  position: relative;
+  /* Prevent transform from affecting layout */
+  transform-origin: center center;
+}
+
+/* Add spacing to prevent overlap during animations */
+.feature-card:hover + .feature-card {
+  transform: translateY(4px);
+}
+
+.pricing-plan {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.pricing-plan:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Enhanced button animations */
+.btn-luxury {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.btn-luxury:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 20px 40px -12px rgba(212, 175, 55, 0.4);
+}
+
+/* Parallax container */
+.parallax-container {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+/* Floating particles */
+.floating-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #D4AF37, #B8941F);
+  opacity: 0.6;
+  animation: float 8s ease-in-out infinite;
+  will-change: transform;
+}

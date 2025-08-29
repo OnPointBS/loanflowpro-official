@@ -1,0 +1,322 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar for all areas */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4AF37;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b8941f;
+}
+
+/* Custom styles for LoanFlowPro */
+.App {
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+/* Brand colors as CSS variables */
+:root {
+  --brand-orange: #D4AF37;
+  --brand-orange-dark: #b8941f;
+  --gunmetal: #2a2a2a;
+  --gunmetal-light: #4a4a4a;
+  --gunmetal-dark: #1a1a1a;
+}
+
+/* Line clamp utility */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Card hover effect */
+.hover-card {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Gradient text effect */
+.gradient-text {
+  background: linear-gradient(135deg, #D4AF37 0%, #b8941f 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Sidebar toggle animations */
+.sidebar-transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Modal animations */
+.modal-backdrop {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Premium card styling */
+.premium-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.premium-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Loading animation */
+.loading-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-indicator.active {
+  background-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.status-indicator.pending {
+  background-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.status-indicator.inactive {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* Form input styling */
+.form-input {
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-input:focus {
+  border-color: var(--brand-orange);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+/* Button styling */
+.btn-primary {
+  background-color: var(--brand-orange);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--brand-orange-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Table styling */
+.table-hover tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(212, 175, 55, 0.05);
+}
+
+/* Notification badge */
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: #ef4444;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  font-weight: bold;
+}
+
+/* Mobile menu overlay */
+@media (max-width: 1024px) {
+  .mobile-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+}
+
+/* Mobile sidebar specific styles */
+.mobile-sidebar {
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.mobile-sidebar.open {
+  transform: translateX(0);
+}
+
+.mobile-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 40;
+  backdrop-filter: blur(2px);
+}
+
+/* Ensure mobile menu button is properly positioned and visible */
+@media (max-width: 1024px) {
+  .mobile-menu-button {
+    position: fixed;
+    top: 1rem;
+    z-index: 50;
+    transition: left 0.3s ease-in-out;
+  }
+}
+
+/* Mobile-first responsive design */
+@media (max-width: 1024px) {
+  /* Hide desktop sidebar on mobile */
+  .desktop-sidebar {
+    display: none !important;
+  }
+  
+  /* Ensure main content takes full width on mobile */
+  .main-content-mobile {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 1rem !important;
+  }
+  
+  /* Mobile menu button positioning */
+  .mobile-menu-toggle {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 50;
+  }
+  
+  /* Mobile content spacing */
+  .mobile-content {
+    padding-top: 5rem;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-break {
+    page-break-after: always;
+  }
+}
+
+/* Utility classes */
+.shadow-brand {
+  box-shadow: 0 4px 6px -1px rgba(212, 175, 55, 0.1), 0 2px 4px -1px rgba(212, 175, 55, 0.06);
+}
+
+.border-brand {
+  border-color: var(--brand-orange);
+}
+
+.text-brand {
+  color: var(--brand-orange);
+}
+
+.bg-brand {
+  background-color: var(--brand-orange);
+}
+
+/* Custom animations */
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Dashboard grid responsive */
+@media (max-width: 640px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

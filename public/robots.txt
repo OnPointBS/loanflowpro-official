@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://loanflowpro.com/sitemap.xml
+
+# Allow crawling of all public pages
+Allow: /about
+Allow: /features
+Allow: /pricing
+Allow: /contact
+Allow: /features/client-management
+Allow: /features/document-management
+Allow: /features/task-automation
+Allow: /features/loan-processing
+Allow: /features/reporting-analytics
+Allow: /features/compliance-security
+
+# Disallow crawling of private/dashboard areas
+Disallow: /app/
+Disallow: /signin
+Disallow: /verify
+
+# Crawl delay (optional)
+Crawl-delay: 1
