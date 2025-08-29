@@ -20,18 +20,22 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get messages between current user and client
-  const messages = useQuery(api.messages.getMessages, {
-    workspaceId: workspaceId as any,
-    userId1: user?._id || '' as any,
-    userId2: clientId as any,
-  }) || [];
+  const messages = useQuery(api.messages.getMessages, 
+    workspaceId && user?._id && clientId ? {
+      workspaceId: workspaceId as any,
+      userId1: user._id as any,
+      userId2: clientId as any,
+    } : "skip"
+  ) || [];
 
   // Get unread message count
-  const unreadCount = useQuery(api.messages.getUnreadMessageCountBetweenUsers, {
-    workspaceId: workspaceId as any,
-    userId1: user?._id || '' as any,
-    userId2: clientId as any,
-  }) || 0;
+  const unreadCount = useQuery(api.messages.getUnreadMessageCountBetweenUsers, 
+    workspaceId && user?._id && clientId ? {
+      workspaceId: workspaceId as any,
+      userId1: user._id as any,
+      userId2: clientId as any,
+    } : "skip"
+  ) || 0;
 
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
@@ -44,7 +48,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
   // Mark messages as read when chat is opened
   useEffect(() => {
-    if (isOpen && unreadCount > 0 && user?._id) {
+    if (isOpen && unreadCount > 0 && user?._id && workspaceId && clientId) {
       markAsRead({
         workspaceId: workspaceId as any,
         userId1: user._id as any,
