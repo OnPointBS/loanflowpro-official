@@ -1,12 +1,4 @@
 {
-  "project": {
-    "name": "loanflowpro",
-    "schemaPath": "convex/schema.ts",
-    "functionsPath": "convex",
-    "auth": {
-      "providers": ["clerk", "resend"]
-    }
-  },
   "deployment": {
     "dev": {
       "url": "https://marvelous-cheetah-331.convex.cloud"

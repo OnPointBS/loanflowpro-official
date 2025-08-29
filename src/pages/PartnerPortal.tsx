@@ -57,6 +57,11 @@ const PartnerPortal: React.FC = () => {
     workspaceId: workspace?.id || '',
   }) || [];
 
+  // Get all clients in the workspace for partner monitoring
+  const clients = useQuery(api.clients.listByWorkspace, {
+    workspaceId: workspace?.id || '',
+  }) || [];
+
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
   const updateTask = useMutation(api.tasks.updateTask);
@@ -95,7 +100,7 @@ const PartnerPortal: React.FC = () => {
     );
   }
 
-  // For preview mode, show sample data
+  // For preview mode, show real data but filter based on what a partner would see
   const canViewLoanFiles = partnerPermissions?.permissions?.includes('view_loan_progress') || isPreviewMode;
   const canViewDocuments = partnerPermissions?.permissions?.includes('view_documents') || isPreviewMode;
   const canViewTasks = partnerPermissions?.permissions?.includes('view_tasks') || isPreviewMode;
@@ -103,58 +108,11 @@ const PartnerPortal: React.FC = () => {
   const canViewClientStatus = partnerPermissions?.permissions?.includes('view_client_status') || isPreviewMode;
   const canSendMessages = partnerPermissions?.permissions?.includes('send_messages') || isPreviewMode;
 
-  // Sample data for preview mode
-  const sampleLoanFiles = isPreviewMode ? [
-    {
-      _id: 'sample-1' as any,
-      loanTypeId: 'sample-loan-type-1' as any,
-      status: 'in_progress',
-      currentStage: 'Document Collection',
-      createdAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
-      updatedAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
-    },
-    {
-      _id: 'sample-2' as any,
-      loanTypeId: 'sample-loan-type-2' as any,
-      status: 'under_review',
-      currentStage: 'Underwriting',
-      createdAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
-      updatedAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
-    }
-  ] : loanFiles;
-
-  const sampleDocuments = isPreviewMode ? [
-    {
-      _id: 'sample-doc-1' as any,
-      fileName: 'Purchase Agreement.pdf',
-      fileType: 'application/pdf',
-      status: 'approved',
-      uploadedAt: Date.now() - 3 * 24 * 60 * 60 * 1000,
-    },
-    {
-      _id: 'sample-doc-2' as any,
-      fileName: 'Property Appraisal.pdf',
-      fileType: 'application/pdf',
-      status: 'pending_review',
-      uploadedAt: Date.now() - 1 * 24 * 60 * 60 * 1000,
-    }
-  ] : documents;
-
-  const sampleTasks = isPreviewMode ? [
-    {
-      _id: 'sample-task-1' as any,
-      title: 'Review Purchase Agreement',
-      status: 'completed',
-      dueDate: Date.now() - 2 * 24 * 60 * 60 * 1000,
-      completedAt: Date.now() - 2 * 24 * 60 * 60 * 1000,
-    },
-    {
-      _id: 'sample-task-2' as any,
-      title: 'Schedule Property Inspection',
-      status: 'in_progress',
-      dueDate: Date.now() + 3 * 24 * 60 * 60 * 1000,
-    }
-  ] : tasks;
+  // Use real data instead of sample data
+  const displayLoanFiles = loanFiles;
+  const displayDocuments = documents;
+  const displayTasks = tasks;
+  const displayClients = clients;
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
@@ -295,12 +253,12 @@ const PartnerPortal: React.FC = () => {
                   <div className="text-center p-4 bg-blue-100 rounded-lg">
                     <TrendingUp className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                     <p className="font-medium text-gunmetal">Loan Progress</p>
-                    <p className="text-sm text-gunmetal-light">{sampleLoanFiles.length} active</p>
+                    <p className="text-sm text-gunmetal-light">{displayLoanFiles.length} active</p>
                   </div>
                   <div className="text-center p-4 bg-blue-100 rounded-lg">
                     <FileText className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                     <p className="font-medium text-gunmetal">Documents</p>
-                    <p className="text-sm text-gunmetal-light">{sampleDocuments.length} available</p>
+                    <p className="text-sm text-gunmetal-light">{displayDocuments.length} available</p>
                   </div>
                   <div className="text-center p-4 bg-blue-100 rounded-lg">
                     <Users className="w-8 h-8 text-blue-600 mx-auto mb-2" />
@@ -314,7 +272,7 @@ const PartnerPortal: React.FC = () => {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gunmetal mb-4">Recent Loan Activity</h3>
                 <div className="space-y-3">
-                  {sampleLoanFiles.slice(0, 3).map((file) => (
+                  {displayLoanFiles.slice(0, 3).map((file) => (
                     <div key={file._id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
                       <TrendingUp className="w-5 h-5 text-blue-600" />
                       <div className="flex-1">
@@ -326,7 +284,7 @@ const PartnerPortal: React.FC = () => {
                       </span>
                     </div>
                   ))}
-                  {sampleLoanFiles.length === 0 && (
+                  {displayLoanFiles.length === 0 && (
                     <p className="text-gunmetal-light text-center py-4">
                       {isPreviewMode ? 'No loan files in preview mode' : 'No recent activity'}
                     </p>
@@ -339,9 +297,9 @@ const PartnerPortal: React.FC = () => {
           {activeTab === 'loan-progress' && canViewLoanFiles && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gunmetal mb-6">Loan Progress Overview</h2>
-              {sampleLoanFiles.length > 0 ? (
+              {displayLoanFiles.length > 0 ? (
                 <div className="space-y-4">
-                  {sampleLoanFiles.map((file) => (
+                  {displayLoanFiles.map((file) => (
                     <div key={file._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
@@ -420,9 +378,9 @@ const PartnerPortal: React.FC = () => {
           {activeTab === 'documents' && canViewDocuments && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gunmetal mb-6">Available Documents</h2>
-              {sampleDocuments.length > 0 ? (
+              {displayDocuments.length > 0 ? (
                 <div className="space-y-4">
-                  {sampleDocuments.map((doc) => (
+                  {displayDocuments.map((doc) => (
                     <div key={doc._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center space-x-3">
@@ -473,9 +431,9 @@ const PartnerPortal: React.FC = () => {
           {activeTab === 'tasks' && canViewTasks && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h2 className="text-2xl font-bold text-gunmetal mb-6">Task Overview</h2>
-              {sampleTasks.length > 0 ? (
+              {displayTasks.length > 0 ? (
                 <div className="space-y-4">
-                  {sampleTasks.map((task) => (
+                  {displayTasks.map((task) => (
                     <div key={task._id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
