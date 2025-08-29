@@ -37,26 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     console.log('🔍 [DEBUG] AuthProvider - useEffect triggered');
     
-    // Check for demo user in localStorage
-    const storedDemoUser = localStorage.getItem("demoUser");
-    console.log('🔍 [DEBUG] - localStorage demoUser:', storedDemoUser);
-    
-    if (storedDemoUser) {
-      try {
-        const parsed = JSON.parse(storedDemoUser);
-        console.log('🔍 [DEBUG] - Parsed demoUser:', parsed);
-        
-        if (parsed.isDemo) {
-          console.log('🔍 [DEBUG] - Setting demo user');
-          setDemoUser(parsed);
-        }
-      } catch (e) {
-        console.error('🔍 [DEBUG] - Error parsing demoUser:', e);
-        localStorage.removeItem("demoUser");
-      }
-    }
-
-    // Check for verified user in localStorage
+    // Check for verified user FIRST (higher priority than demo user)
     const storedVerifiedUser = localStorage.getItem("verifiedUser");
     console.log('🔍 [DEBUG] - localStorage verifiedUser:', storedVerifiedUser);
     
@@ -66,19 +47,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('🔍 [DEBUG] - Parsed verifiedUser:', parsed);
         
         if (parsed.isAuthenticated) {
-          console.log('🔍 [DEBUG] - Setting verified user');
+          console.log('🔍 [DEBUG] - Setting verified user (highest priority)');
           setVerifiedUser(parsed);
+          // Clear any demo user data when verified user is present
+          setDemoUser(null);
+          return; // Exit early, don't check for demo user
         }
       } catch (e) {
         console.error('🔍 [DEBUG] - Error parsing verifiedUser:', e);
         localStorage.removeItem("verifiedUser");
       }
     }
+
+    // Only check for demo user if no verified user exists
+    const storedDemoUser = localStorage.getItem("demoUser");
+    console.log('🔍 [DEBUG] - localStorage demoUser:', storedDemoUser);
+    
+    if (storedDemoUser) {
+      try {
+        const parsed = JSON.parse(storedDemoUser);
+        console.log('🔍 [DEBUG] - Parsed demoUser:', parsed);
+        
+        if (parsed.isDemo) {
+          console.log('🔍 [DEBUG] - Setting demo user (no verified user present)');
+          setDemoUser(parsed);
+        }
+      } catch (e) {
+        console.error('🔍 [DEBUG] - Error parsing demoUser:', e);
+        localStorage.removeItem("verifiedUser");
+      }
+    }
   }, []);
 
-  // Add a listener for storage changes to keep demo user state in sync
+  // Add a listener for storage changes to keep user state in sync
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'verifiedUser' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed.isAuthenticated) {
+            console.log('🔍 [DEBUG] AuthProvider - Storage change detected, updating verified user');
+            setVerifiedUser(parsed);
+            // Clear demo user when verified user is set
+            setDemoUser(null);
+            localStorage.removeItem("demoUser");
+          }
+        } catch (e) {
+          console.error('🔍 [DEBUG] - Error parsing verifiedUser from storage change:', e);
+        }
+      }
+      
       if (e.key === 'demoUser' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
