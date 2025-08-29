@@ -836,13 +836,49 @@ const ClientPortal: React.FC = () => {
 
                         {/* Tasks for this Loan Type */}
                         <div className="p-6">
+                          {/* Task Role Legend */}
+                          <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <h5 className="text-sm font-medium text-gunmetal mb-2">Task Assignment Legend:</h5>
+                            <div className="flex items-center space-x-4 text-xs">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-blue-200 border border-blue-300 rounded"></div>
+                                <span className="text-blue-800">CLIENT Tasks</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-orange-200 border border-orange-300 rounded"></div>
+                                <span className="text-orange-800">ADVISOR Tasks</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-purple-200 border border-purple-300 rounded"></div>
+                                <span className="text-purple-800">STAFF Tasks</span>
+                              </div>
+                            </div>
+                          </div>
+                          
                           <div className="space-y-4">
                             {loanTypeTasks.map((task) => (
-                              <div key={task._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                {/* Task Header */}
+                              <div key={task._id} className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+                                // Color code based on assignee role
+                                (task as any).assigneeRole === 'CLIENT' ? 'border-blue-200 bg-blue-50' :
+                                (task as any).assigneeRole === 'ADVISOR' ? 'border-orange-200 bg-orange-50' :
+                                (task as any).assigneeRole === 'STAFF' ? 'border-purple-200 bg-purple-50' :
+                                'border-gray-200 bg-white'
+                              }`}>
+                                {/* Task Header with Role Badge */}
                                 <div className="flex items-start justify-between mb-3">
                                   <div className="flex-1">
-                                    <h4 className="font-semibold text-gunmetal text-lg">{task.title}</h4>
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <h4 className="font-semibold text-gunmetal text-lg">{task.title}</h4>
+                                      {/* Role Badge */}
+                                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                        (task as any).assigneeRole === 'CLIENT' ? 'bg-blue-100 text-blue-800' :
+                                        (task as any).assigneeRole === 'ADVISOR' ? 'bg-orange-100 text-orange-800' :
+                                        (task as any).assigneeRole === 'STAFF' ? 'bg-purple-100 text-purple-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {(task as any).assigneeRole || 'UNASSIGNED'}
+                                      </span>
+                                    </div>
                                     <p className="text-gunmetal-light mt-1">{task.description}</p>
                                   </div>
                                   <div className="flex items-center space-x-3 ml-4">
