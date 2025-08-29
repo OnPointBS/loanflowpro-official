@@ -80,6 +80,84 @@ const ClientPortal: React.FC = () => {
     email: user?.email || '',
   }) : null;
 
+  // Sample data for preview mode
+  const sampleTasks = [
+    {
+      _id: 'sample-task-1' as any,
+      title: 'Submit Income Verification',
+      description: 'Please provide your most recent pay stubs and W-2 forms for income verification.',
+      status: 'pending' as const,
+      priority: 'high' as const,
+      dueAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days from now
+      createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000), // 3 days ago
+      updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
+      loanFileId: 'sample-loan-file-1' as any,
+      clientNote: 'I will gather these documents this week.'
+    },
+    {
+      _id: 'sample-task-2' as any,
+      title: 'Complete Credit Authorization',
+      description: 'Sign the credit authorization form to allow us to pull your credit report.',
+      status: 'in_progress' as const,
+      priority: 'normal' as const,
+      dueAt: Date.now() + (3 * 24 * 60 * 60 * 1000), // 3 days from now
+      createdAt: Date.now() - (5 * 24 * 60 * 60 * 1000), // 5 days ago
+      updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000), // 1 day ago
+      loanFileId: 'sample-loan-file-1' as any,
+      clientNote: 'Form completed and submitted.'
+    },
+    {
+      _id: 'sample-task-3' as any,
+      title: 'Provide Bank Statements',
+      description: 'Upload your last 3 months of bank statements for asset verification.',
+      status: 'pending' as const,
+      priority: 'urgent' as const,
+      dueAt: Date.now() + (2 * 24 * 60 * 60 * 1000), // 2 days from now
+      createdAt: Date.now() - (2 * 24 * 60 * 60 * 1000), // 2 days ago
+      updatedAt: Date.now() - (2 * 24 * 60 * 60 * 1000),
+      loanFileId: 'sample-loan-file-1' as any,
+      clientNote: null
+    }
+  ];
+
+  const sampleLoanFiles = [
+    {
+      _id: 'sample-loan-file-1' as any,
+      status: 'in_progress' as const,
+      currentStage: 'Document Collection',
+      createdAt: Date.now() - (7 * 24 * 60 * 60 * 1000), // 7 days ago
+      updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000), // 1 day ago
+      loanTypeId: 'sample-loan-type-1' as any,
+    }
+  ];
+
+  const sampleDocuments = [
+    {
+      _id: 'sample-doc-1' as any,
+      fileName: 'Pay_Stub_January.pdf',
+      fileType: 'application/pdf',
+      fileSize: 245760,
+      status: 'approved' as const,
+      uploadedAt: Date.now() - (2 * 24 * 60 * 60 * 1000), // 2 days ago
+      createdAt: Date.now() - (2 * 24 * 60 * 60 * 1000),
+      updatedAt: Date.now() - (2 * 24 * 60 * 60 * 1000),
+      uploadedBy: 'sample-user-1' as any,
+      workspaceId: 'sample-workspace-1' as any,
+    },
+    {
+      _id: 'sample-doc-2' as any,
+      fileName: 'W2_Form_2023.pdf',
+      fileType: 'application/pdf',
+      fileSize: 189440,
+      status: 'pending_review' as const,
+      uploadedAt: Date.now() - (1 * 24 * 60 * 60 * 1000), // 1 day ago
+      createdAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
+      updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
+      uploadedBy: 'sample-user-1' as any,
+      workspaceId: 'sample-workspace-1' as any,
+    }
+  ];
+
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
   const uploadDocument = useMutation(api.documents.uploadDocument);
@@ -124,9 +202,9 @@ const ClientPortal: React.FC = () => {
   const canSendMessages = clientPermissions?.permissions?.includes('send_messages') || isPreviewMode;
 
   // Filter data based on permissions
-  const displayLoanFiles = canViewLoanFiles ? loanFiles : [];
-  const displayDocuments = canViewDocuments ? documents : [];
-  const displayTasks = canViewTasks ? tasks : [];
+  const displayLoanFiles = canViewLoanFiles ? (isPreviewMode ? sampleLoanFiles : loanFiles) : [];
+  const displayDocuments = canViewDocuments ? (isPreviewMode ? sampleDocuments : documents) : [];
+  const displayTasks = canViewTasks ? (isPreviewMode ? sampleTasks : tasks) : [];
 
   // Permission-based access control
   const hasAnyAccess = canViewLoanFiles || canViewDocuments || canViewTasks || canViewAnalytics || canUploadDocuments || canSendMessages;
