@@ -1,49 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import { ConvexError } from "convex/values";
-
-// Send partner invitation email action
-export const sendPartnerInvitationEmail = action({
-  args: {
-    partnerEmail: v.string(),
-    partnerName: v.string(),
-    workspaceName: v.string(),
-    inviterName: v.string(),
-    inviteUrl: v.string(),
-    partnerRole: v.string(),
-  },
-  handler: async (ctx, args) => {
-    // In a real implementation, you would use Resend or another email service
-    // For now, we'll log the email details
-    console.log('📧 Sending partner invitation email:', {
-      to: args.partnerEmail,
-      partnerName: args.partnerName,
-      workspaceName: args.workspaceName,
-      inviterName: args.inviterName,
-      inviteUrl: args.inviteUrl,
-      partnerRole: args.partnerRole,
-    });
-
-    // TODO: Integrate with Resend email service
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    // await resend.emails.send({
-    //   from: 'noreply@loanflowpro.com',
-    //   to: args.partnerEmail,
-    //   subject: `You've been invited as a ${args.partnerRole} to ${args.workspaceName}`,
-    //   html: `
-    //     <h2>Hello ${args.partnerName},</h2>
-    //     <p>${args.inviterName} has invited you to join their workspace on LoanFlowPro as a ${args.partnerRole}.</p>
-    //     <p>As a partner, you'll be able to monitor loan progress and stay updated on important milestones.</p>
-    //     <p>Click the link below to accept the invitation:</p>
-    //     <a href="${args.inviteUrl}">Accept Invitation</a>
-    //     <p>This invitation will expire in 7 days.</p>
-    //   `
-    // });
-
-    return { success: true };
-  },
-});
 
 // Create a partner invitation
 export const createPartnerInvite = mutation({
@@ -114,17 +72,17 @@ export const createPartnerInvite = mutation({
       createdAt: Date.now(),
     });
 
-    // Send invitation email
-    const inviteUrl = `${process.env.SITE_URL || 'https://loanflowpro.com'}/partner/accept?inviteId=${inviteId}`;
-    
+    // Send invitation email using the existing sendMagicLink system
     try {
-      await ctx.scheduler.runAfter(0, api.partners.sendPartnerInvitationEmail, {
-        partnerEmail,
-        partnerName,
+      await ctx.scheduler.runAfter(0, api.auth.sendMagicLink, {
+        email: partnerEmail,
+        workspaceId: workspaceId,
+        inviteType: "partner",
+        inviteId: inviteId,
+        partnerName: partnerName,
+        partnerRole: partnerRole,
         workspaceName: workspace.name,
         inviterName: inviter.name || inviter.email,
-        inviteUrl,
-        partnerRole,
       });
     } catch (error) {
       console.error('Failed to schedule partner invitation email:', error);

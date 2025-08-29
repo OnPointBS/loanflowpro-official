@@ -51,6 +51,8 @@ const VerifyEmail = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
+  const inviteType = searchParams.get('inviteType');
+  const inviteId = searchParams.get('inviteId');
   const [isVerifying, setIsVerifying] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +66,8 @@ const VerifyEmail = () => {
       
       try {
         console.log('Magic link token received:', token);
+        console.log('Invite type:', inviteType);
+        console.log('Invite ID:', inviteId);
         
         // Call the Convex verifyMagicLink function to create/verify user
         const result = await convex.mutation(api.authMutations.verifyMagicLink, { token });
@@ -80,7 +84,40 @@ const VerifyEmail = () => {
           };
           
           localStorage.setItem('verifiedUser', JSON.stringify(authData));
-          navigate('/app/dashboard', { replace: true });
+          
+          // Handle different invitation types
+          if (inviteType === 'client' && inviteId) {
+            // Accept client invitation
+            try {
+              await convex.mutation(api.clientInvites.acceptInvite, { 
+                inviteId: inviteId as any, 
+                userId: result.user._id 
+              });
+              console.log('Client invitation accepted successfully');
+              navigate('/client', { replace: true }); // Redirect to client portal
+            } catch (inviteError) {
+              console.error('Failed to accept client invitation:', inviteError);
+              // Still navigate to dashboard if invitation acceptance fails
+              navigate('/app/dashboard', { replace: true });
+            }
+          } else if (inviteType === 'partner' && inviteId) {
+            // Accept partner invitation
+            try {
+              await convex.mutation(api.partners.acceptPartnerInvite, { 
+                inviteId: inviteId as any, 
+                userId: result.user._id 
+              });
+              console.log('Partner invitation accepted successfully');
+              navigate('/app/dashboard', { replace: true }); // Redirect to dashboard
+            } catch (inviteError) {
+              console.error('Failed to accept partner invitation:', inviteError);
+              // Still navigate to dashboard if invitation acceptance fails
+              navigate('/app/dashboard', { replace: true });
+            }
+          } else {
+            // Regular sign-in, go to dashboard
+            navigate('/app/dashboard', { replace: true });
+          }
         } else {
           throw new Error('Verification failed');
         }
@@ -92,7 +129,7 @@ const VerifyEmail = () => {
     };
     
     verifyToken();
-  }, [token, navigate]);
+  }, [token, inviteType, inviteId, navigate]);
 
   if (isVerifying) {
     return (

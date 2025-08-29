@@ -1,46 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { api } from "./_generated/api";
 import { ConvexError } from "convex/values";
-
-// Send invitation email action
-export const sendInvitationEmail = action({
-  args: {
-    clientEmail: v.string(),
-    clientName: v.string(),
-    workspaceName: v.string(),
-    inviterName: v.string(),
-    inviteUrl: v.string(),
-  },
-  handler: async (ctx, args) => {
-    // In a real implementation, you would use Resend or another email service
-    // For now, we'll log the email details
-    console.log('📧 Sending invitation email:', {
-      to: args.clientEmail,
-      clientName: args.clientName,
-      workspaceName: args.workspaceName,
-      inviterName: args.inviterName,
-      inviteUrl: args.inviteUrl,
-    });
-
-    // TODO: Integrate with Resend email service
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    // await resend.emails.send({
-    //   from: 'noreply@loanflowpro.com',
-    //   to: args.clientEmail,
-    //   subject: `You've been invited to join ${args.workspaceName}`,
-    //   html: `
-    //     <h2>Hello ${args.clientName},</h2>
-    //     <p>${args.inviterName} has invited you to join their workspace on LoanFlowPro.</p>
-    //     <p>Click the link below to accept the invitation:</p>
-    //     <a href="${args.inviteUrl}">Accept Invitation</a>
-    //     <p>This invitation will expire in 7 days.</p>
-    //   `
-    // });
-
-    return { success: true };
-  },
-});
 
 // Create a client invitation
 export const createInvite = mutation({
@@ -105,16 +66,16 @@ export const createInvite = mutation({
       createdAt: Date.now(),
     });
 
-    // Send invitation email
-    const inviteUrl = `${process.env.SITE_URL || 'https://loanflowpro.com'}/client/accept?inviteId=${inviteId}`;
-    
+    // Send invitation email using the existing sendMagicLink system
     try {
-      await ctx.scheduler.runAfter(0, api.clientInvites.sendInvitationEmail, {
-        clientEmail,
-        clientName,
+      await ctx.scheduler.runAfter(0, api.auth.sendMagicLink, {
+        email: clientEmail,
+        workspaceId: workspaceId,
+        inviteType: "client",
+        inviteId: inviteId,
+        clientName: clientName,
         workspaceName: workspace.name,
         inviterName: inviter.name || inviter.email,
-        inviteUrl,
       });
     } catch (error) {
       console.error('Failed to schedule invitation email:', error);
