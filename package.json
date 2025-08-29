@@ -13,7 +13,9 @@
     "seed": "tsx scripts/seed.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "seed:workspace": "tsx scripts/seed-demo-workspace.ts",
-    "create:demo": "tsx scripts/create-demo-workspace.ts"
+    "create:demo": "tsx scripts/create-demo-workspace.ts",
+    "seed:production": "tsx scripts/seed-production.ts",
+    "export:data": "tsx scripts/export-import-data.ts"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
