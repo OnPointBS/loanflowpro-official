@@ -13,7 +13,7 @@ interface Client {
   email: string;
   phone?: string;
   notes?: string;
-  status: 'active' | 'inactive' | 'prospect';
+  status: 'active' | 'inactive' | 'prospect' | 'invited' | 'declined';
   createdAt: number;
   loanTypeCount?: number;
   taskCount?: number;
@@ -374,14 +374,17 @@ const Clients: React.FC = () => {
                      viewFilter === 'partners' ? filteredPartners : 
                      [...filteredClients, ...filteredPartners];
 
-  // Helper function to check if item is a client
+  // Type guards
   const isClient = (item: Client | Partner): item is Client => {
-    return 'status' in item && ['active', 'inactive', 'prospect'].includes(item.status);
+    // Check if item has client-specific properties
+    return 'status' in item && 
+           (item.status === 'active' || item.status === 'inactive' || item.status === 'prospect' || item.status === 'invited' || item.status === 'declined') &&
+           !('role' in item);
   };
-
-  // Helper function to check if item is a partner
+  
   const isPartner = (item: Client | Partner): item is Partner => {
-    return 'status' in item && ['active', 'inactive', 'invited', 'declined'].includes(item.status);
+    // Check if item has partner-specific properties
+    return 'role' in item && 'company' in item;
   };
 
   // Get status options based on view filter
@@ -391,7 +394,9 @@ const Clients: React.FC = () => {
         { value: '', label: 'All Statuses' },
         { value: 'active', label: 'Active' },
         { value: 'inactive', label: 'Inactive' },
-        { value: 'prospect', label: 'Prospect' }
+        { value: 'prospect', label: 'Prospect' },
+        { value: 'invited', label: 'Invited' },
+        { value: 'declined', label: 'Declined' }
       ];
     } else if (viewFilter === 'partners') {
       return [
@@ -966,8 +971,23 @@ const Clients: React.FC = () => {
     setIsAssignModalOpen(true);
   };
 
+  // Enhanced delete confirmation modal function
   const openDeleteConfirmationModal = (type: 'client' | 'partner', item: Client | Partner) => {
     console.log('Opening delete confirmation modal:', { type, item });
+    
+    // Double-check the type matches the actual item
+    if (type === 'client' && !isClient(item)) {
+      console.error('Type mismatch: expected client but got partner-like item');
+      alert('Error: Item type mismatch. Please try again.');
+      return;
+    }
+    
+    if (type === 'partner' && !isPartner(item)) {
+      console.error('Type mismatch: expected partner but got client-like item');
+      alert('Error: Item type mismatch. Please try again.');
+      return;
+    }
+    
     setItemToDelete({ type, item });
     setIsDeleteConfirmationModalOpen(true);
   };
@@ -1681,6 +1701,8 @@ const Clients: React.FC = () => {
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                   <option value="prospect">Prospect</option>
+                  <option value="invited">Invited</option>
+                  <option value="declined">Declined</option>
                 </select>
               </div>
 
@@ -2190,7 +2212,8 @@ const Clients: React.FC = () => {
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                         selectedClient.status === 'active' ? 'bg-green-100 text-green-800' :
                         selectedClient.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
+                        selectedClient.status === 'invited' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
                       }`}>
                         {selectedClient.status.charAt(0).toUpperCase() + selectedClient.status.slice(1)}
                       </span>
@@ -2397,10 +2420,16 @@ const Clients: React.FC = () => {
                     if (!itemToDelete) return;
                     
                     try {
+                      console.log('Attempting to delete:', itemToDelete);
+                      
                       if (itemToDelete.type === 'client') {
+                        console.log('Deleting client with ID:', itemToDelete.item._id);
                         await deleteClientMutation({ clientId: itemToDelete.item._id as any });
-                      } else {
+                      } else if (itemToDelete.type === 'partner') {
+                        console.log('Deleting partner with ID:', itemToDelete.item._id);
                         await deletePartnerMutation({ partnerId: itemToDelete.item._id as any });
+                      } else {
+                        throw new Error(`Unknown item type: ${itemToDelete.type}`);
                       }
                       
                       alert(`${itemToDelete.type === 'client' ? 'Client' : 'Partner'} deleted successfully`);
