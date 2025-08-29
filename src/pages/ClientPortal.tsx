@@ -78,6 +78,12 @@ const ClientPortal: React.FC = () => {
     clientId: user?._id || '',
   }) || [];
 
+  // Get client's assigned loan types with proper ordering
+  const clientLoanTypes = useQuery(api.clientLoanTypes.getClientLoanTypes, {
+    workspaceId: workspace?.id || '',
+    clientId: user?._id || '',
+  }) || [];
+
   // Get workspace loan types and task templates for realistic sample data
   const workspaceLoanTypes = useQuery(api.loanTypes.listByWorkspace, {
     workspaceId: workspace?.id || '',
@@ -217,6 +223,64 @@ const ClientPortal: React.FC = () => {
     }));
   }, [workspaceLoanTypes]);
 
+  // Get the actual loan types assigned to this client (not just workspace loan types)
+  const assignedLoanTypes = React.useMemo(() => {
+    if (isPreviewMode) {
+      // In preview mode, use sample data
+      return sampleLoanTypes;
+    }
+    
+    // For real clients, use their assigned loan types
+    return clientLoanTypes
+      .sort((a: any, b: any) => (a.customOrder || 0) - (b.customOrder || 0))
+      .map((clientLoanType: any) => {
+        // Find the base loan type details
+        const baseLoanType = workspaceLoanTypes.find(lt => lt._id === clientLoanType.loanTypeId);
+        return {
+          _id: clientLoanType._id,
+          name: clientLoanType.customName || baseLoanType?.name || 'Unknown Loan Type',
+          category: baseLoanType?.category || 'Unknown',
+          stages: baseLoanType?.stages || [],
+          order: clientLoanType.customOrder || 1,
+          customName: clientLoanType.customName,
+          notes: clientLoanType.notes
+        };
+      });
+  }, [clientLoanTypes, workspaceLoanTypes, isPreviewMode, sampleLoanTypes]);
+
+  // Get tasks organized by loan type for this specific client
+  const tasksByLoanType = React.useMemo(() => {
+    if (isPreviewMode) {
+      // In preview mode, use sample data
+      return sampleTasks;
+    }
+
+    // For real clients, organize tasks by their assigned loan types
+    const organizedTasks: any[] = [];
+    
+    clientLoanTypes.forEach((clientLoanType: any) => {
+      // Find tasks for this specific loan type assignment
+      const loanTypeTasks = tasks.filter(task => {
+        // Check if task belongs to this loan type through loan files
+        return loanFiles.some(loanFile => 
+          loanFile.loanTypeId === clientLoanType.loanTypeId && 
+          loanFile._id === task.loanFileId
+        );
+      });
+
+      if (loanTypeTasks.length > 0) {
+        organizedTasks.push(...loanTypeTasks.map(task => ({
+          ...task,
+          loanTypeId: clientLoanType.loanTypeId,
+          loanTypeName: clientLoanType.customName || 'Unknown Loan Type',
+          loanTypeOrder: clientLoanType.customOrder || 1
+        })));
+      }
+    });
+
+    return organizedTasks.sort((a: any, b: any) => (a.loanTypeOrder || 0) - (b.loanTypeOrder || 0));
+  }, [clientLoanTypes, tasks, loanFiles, isPreviewMode, sampleTasks]);
+
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
   const uploadDocument = useMutation(api.documents.uploadDocument);
@@ -261,8 +325,8 @@ const ClientPortal: React.FC = () => {
   const canSendMessages = clientPermissions?.permissions?.includes('send_messages') || isPreviewMode;
 
   // Filter data based on permissions
-  const displayLoanTypes = canViewLoanFiles ? (isPreviewMode ? sampleLoanTypes : workspaceLoanTypes) : [];
-  const displayTasks = canViewTasks ? (isPreviewMode ? sampleTasks : tasks) : [];
+  const displayLoanTypes = canViewLoanFiles ? (isPreviewMode ? sampleLoanTypes : assignedLoanTypes) : [];
+  const displayTasks = canViewTasks ? (isPreviewMode ? sampleTasks : tasksByLoanType) : [];
 
   // Permission-based access control
   const hasAnyAccess = canViewLoanFiles || canViewDocuments || canViewTasks || canViewAnalytics || canUploadDocuments || canSendMessages;
@@ -535,109 +599,123 @@ const ClientPortal: React.FC = () => {
                     
                     {/* Multiple Loan Types with Progress */}
                     <div className="space-y-4">
-                      {displayLoanTypes.map((loanType, index) => {
-                        const loanTypeTasks = displayTasks.filter(task => {
-                          // For sample tasks, check loanTypeId
-                          if ((task as any).loanTypeId) {
-                            return (task as any).loanTypeId === loanType._id;
-                          }
-                          // For real tasks, we need to find the loan file that matches this loan type
-                          // For now, we'll show all tasks in preview mode
-                          return isPreviewMode;
-                        });
-                        const completedTasks = loanTypeTasks.filter(task => task.status === 'completed').length;
-                        const totalTasks = loanTypeTasks.length;
-                        const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-                        
-                        return (
-                          <div key={loanType._id} className="border border-blue-200 rounded-lg p-4 bg-white">
-                            {/* Loan Type Header */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-3">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                                  index === 0 ? 'bg-green-500' : 
-                                  index === 1 ? 'bg-blue-500' : 'bg-gray-400'
-                                }`}>
-                                  {index + 1}
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold text-blue-800">
-                                    {loanType.name}
-                                  </h4>
-                                  <p className="text-sm text-blue-600">
-                                    {index === 0 ? 'Current Priority' : 
-                                     index === 1 ? 'Next in Queue' : 'Pending'}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  loanType.stages.length > 0 && loanType.stages[loanType.stages.length - 1] === 'Approval' ? 'bg-green-100 text-green-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {loanType.stages.length > 0 ? loanType.stages[loanType.stages.length - 1] : 'No Stages'}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="mb-3">
-                              <div className="flex justify-between text-sm text-blue-600 mb-1">
-                                <span>Progress</span>
-                                <span>{completedTasks} of {totalTasks} tasks completed</span>
-                              </div>
-                              <div className="w-full bg-blue-200 rounded-full h-2">
-                                <div 
-                                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${progressPercentage}%` }}
-                                ></div>
-                              </div>
-                            </div>
-
-                            {/* Current Stage and Tasks */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="text-blue-600">Current Stage:</span>
-                                <p className="font-medium text-blue-800">
-                                  {loanType.stages.length > 0 ? loanType.stages[loanType.stages.length - 1] : 'No Stages'}
-                                </p>
-                              </div>
-                              <div>
-                                <span className="text-blue-600">Next Action:</span>
-                                <p className="font-medium text-blue-800">
-                                  {loanTypeTasks.find(t => t.status === 'pending')?.title || 'Complete current tasks'}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Task Summary */}
-                            {totalTasks > 0 && (
-                              <div className="mt-3 pt-3 border-t border-blue-200">
-                                <div className="flex justify-between text-xs text-blue-600">
-                                  <span>Task Status:</span>
-                                  <span>
-                                    {loanTypeTasks.filter(t => t.status === 'in_progress').length} in progress, 
-                                    {loanTypeTasks.filter(t => t.status === 'pending').length} pending
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Overall Progress Summary */}
-                    <div className="mt-4 pt-4 border-t border-blue-200">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-blue-800">Overall Progress</span>
-                        <span className="text-sm text-blue-600">
-                          {displayTasks.filter(t => t.status === 'completed').length} of {displayTasks.length} total tasks completed
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                      {displayLoanTypes.map((loanType: any, index: number) => {
+                        const loanTypeTasks = displayTasks.filter((task: any) => {
+                           // For sample tasks, check loanTypeId
+                           if ((task as any).loanTypeId) {
+                             return (task as any).loanTypeId === loanType._id;
+                           }
+                           // For real tasks, we need to find the loan file that matches this loan type
+                           // For now, we'll show all tasks in preview mode
+                           return isPreviewMode;
+                         });
+                         const completedTasks = loanTypeTasks.filter((task: any) => task.status === 'completed').length;
+                         const totalTasks = loanTypeTasks.length;
+                         const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+                         
+                         return (
+                           <div key={loanType._id} className="border border-blue-200 rounded-lg p-4 bg-white">
+                             {/* Loan Type Header */}
+                             <div className="flex items-center justify-between mb-3">
+                               <div className="flex items-center space-x-3">
+                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                   index === 0 ? 'bg-green-500 text-white' :
+                                   index === 1 ? 'bg-blue-500 text-white' :
+                                   'bg-gray-500 text-white'
+                                 }`}>
+                                   {index + 1}
+                                 </div>
+                                 <div>
+                                   <h4 className="font-semibold text-blue-800">
+                                     {loanType.name}
+                                   </h4>
+                                   <p className="text-sm text-blue-600">
+                                     {index === 0 ? 'Current Priority' : 
+                                      index === 1 ? 'Next in Queue' : 
+                                      'Pending'}
+                                   </p>
+                                 </div>
+                               </div>
+                               <div className="text-right">
+                                 <span className={`text-xs px-2 py-1 rounded ${
+                                   loanType.stages.length > 0 && loanType.stages[loanType.stages.length - 1] === 'Approval' ? 'bg-green-100 text-green-800' :
+                                   'bg-gray-100 text-gray-800'
+                                 }`}>
+                                   {loanType.stages.length > 0 ? loanType.stages[loanType.stages.length - 1] : 'No Stages'}
+                                 </span>
+                               </div>
+                             </div>
+                             
+                             {/* Progress Bar */}
+                             <div className="mb-3">
+                               <div className="flex justify-between text-xs text-blue-600 mb-1">
+                                 <span>Progress</span>
+                                 <span>{Math.round(progressPercentage)}%</span>
+                               </div>
+                               <div className="w-full bg-blue-200 rounded-full h-2">
+                                 <div 
+                                   className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                   style={{ width: `${progressPercentage}%` }}
+                                 />
+                               </div>
+                             </div>
+                             
+                             {/* Loan Type Details */}
+                             <div className="grid grid-cols-2 gap-4 text-sm">
+                               <div>
+                                 <span className="text-blue-600">Current Stage:</span>
+                                 <p className="font-medium text-blue-800">
+                                   {loanType.stages.length > 0 ? loanType.stages[loanType.stages.length - 1] : 'No Stages'}
+                                 </p>
+                               </div>
+                               <div>
+                                 <span className="text-blue-600">Next Action:</span>
+                                 <p className="font-medium text-blue-800">
+                                   {totalTasks > 0 ? `${totalTasks - completedTasks} tasks remaining` : 'No tasks assigned'}
+                                 </p>
+                               </div>
+                             </div>
+                             
+                             {/* Task Summary */}
+                             <div className="mt-3 pt-3 border-t border-blue-200">
+                               <div className="flex justify-between text-xs text-blue-600">
+                                 <span>Tasks: {completedTasks} completed, {totalTasks - completedTasks} pending</span>
+                                 <span>Order: {loanType.order}</span>
+                               </div>
+                             </div>
+                           </div>
+                         );
+                       })}
+                     </div>
+                     
+                     {/* Overall Progress Summary */}
+                     <div className="mt-4 p-3 bg-white rounded-lg border border-blue-200">
+                       <h4 className="font-medium text-blue-800 mb-2">Overall Progress Summary</h4>
+                       <div className="grid grid-cols-3 gap-4 text-center">
+                         <div>
+                           <div className="text-lg font-bold text-blue-600">
+                             {displayLoanTypes.length}
+                           </div>
+                           <div className="text-xs text-blue-600">Loan Types</div>
+                         </div>
+                         <div>
+                           <div className="text-lg font-bold text-blue-600">
+                             {displayTasks.length}
+                           </div>
+                           <div className="text-xs text-blue-600">Total Tasks</div>
+                         </div>
+                         <div>
+                           <div className="text-lg font-bold text-blue-600">
+                             {Math.round(displayTasks.length > 0 ? 
+                               (displayTasks.filter((t: any) => t.status === 'completed').length / displayTasks.length) * 100 : 0
+                             )}%
+                           </div>
+                           <div className="text-xs text-blue-600">Overall Complete</div>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 )}
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                   {canViewLoanFiles && (
