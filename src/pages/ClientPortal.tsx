@@ -35,6 +35,8 @@ const ClientPortal: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [taskNote, setTaskNote] = useState('');
   const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [taskUploads, setTaskUploads] = useState<Record<string, File | null>>({});
+  const [taskUploading, setTaskUploading] = useState<Record<string, boolean>>({});
 
   // Get client ID from URL if in preview mode
   const clientIdFromUrl = searchParams.get('clientId');
@@ -179,6 +181,7 @@ const ClientPortal: React.FC = () => {
       await uploadDocument({
         workspaceId: workspace.id,
         loanFileId: loanFileId,
+        clientId: specificClient?._id || undefined,
         fileName: selectedFile.name,
         fileType: selectedFile.type,
         fileSize: selectedFile.size,
@@ -223,6 +226,43 @@ const ClientPortal: React.FC = () => {
       });
     } catch (error) {
       console.error('Failed to complete task:', error);
+    }
+  };
+
+  const handleTaskFileUpload = async (taskId: string) => {
+    const file = taskUploads[taskId];
+    if (!file) return;
+    
+    setTaskUploading(prev => ({ ...prev, [taskId]: true }));
+    try {
+      // Get the task to find its loan file
+      const task = displayTasks.find(t => t._id === taskId);
+      let loanFileId: any = undefined;
+      if (task?.loanFileId) {
+        loanFileId = task.loanFileId;
+      }
+      
+      // Upload the document linked to the task
+      await uploadDocument({
+        workspaceId: workspace.id,
+        loanFileId: loanFileId,
+        clientId: specificClient?._id || undefined,
+        taskId: taskId as any,
+        fileName: file.name,
+        fileType: file.type,
+        fileSize: file.size,
+        uploadedBy: user._id,
+        status: 'pending_review'
+      });
+      
+      // Clear the file input for this task
+      setTaskUploads(prev => ({ ...prev, [taskId]: null }));
+      alert('Document uploaded successfully for this task!');
+    } catch (error) {
+      console.error('Failed to upload document for task:', error);
+      alert('Failed to upload document. Please try again.');
+    } finally {
+      setTaskUploading(prev => ({ ...prev, [taskId]: false }));
     }
   };
 
@@ -617,6 +657,36 @@ const ClientPortal: React.FC = () => {
                             >
                               Add Note
                             </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Task File Upload */}
+                      {task.status !== 'completed' && (
+                        <div className="border-t pt-3 mt-3">
+                          <h4 className="font-medium text-gunmetal mb-2">Upload Files for This Task</h4>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="file"
+                              onChange={(e) => setTaskUploads(prev => ({ 
+                                ...prev, 
+                                [task._id]: e.target.files?.[0] || null 
+                              }))}
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            />
+                            <button
+                              onClick={() => handleTaskFileUpload(task._id)}
+                              disabled={!taskUploads[task._id] || taskUploading[task._id]}
+                              className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                            >
+                              {taskUploading[task._id] ? 'Uploading...' : 'Upload'}
+                            </button>
+                          </div>
+                          {taskUploads[task._id] && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Selected: {taskUploads[task._id]?.name}
+                            </p>
                           )}
                         </div>
                       )}

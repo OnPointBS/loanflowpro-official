@@ -156,6 +156,22 @@ export const listByClient = query({
   },
 });
 
+// List documents by task
+export const listByTask = query({
+  args: { 
+    workspaceId: v.id("workspaces"),
+    taskId: v.id("tasks"),
+  },
+  handler: async (ctx, { workspaceId, taskId }) => {
+    return await ctx.db
+      .query("documents")
+      .withIndex("by_task", (q) => q.eq("taskId", taskId))
+      .filter((q) => q.eq(q.field("workspaceId"), workspaceId))
+      .order("desc")
+      .collect();
+  },
+});
+
 // Update document status
 export const updateStatus = mutation({
   args: {
@@ -253,6 +269,8 @@ export const uploadDocument = mutation({
   args: {
     workspaceId: v.id("workspaces"),
     loanFileId: v.optional(v.id("loanFiles")),
+    clientId: v.optional(v.id("clients")),
+    taskId: v.optional(v.id("tasks")),
     fileName: v.string(),
     fileType: v.string(),
     fileSize: v.number(),
@@ -265,6 +283,8 @@ export const uploadDocument = mutation({
     const documentId = await ctx.db.insert("documents", {
       workspaceId: args.workspaceId,
       loanFileId: args.loanFileId,
+      clientId: args.clientId,
+      taskId: args.taskId,
       fileName: args.fileName,
       fileType: args.fileType,
       fileSize: args.fileSize,

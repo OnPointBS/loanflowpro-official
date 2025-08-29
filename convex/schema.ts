@@ -234,6 +234,7 @@ export default defineSchema({
     workspaceId: v.id("workspaces"),
     loanFileId: v.optional(v.id("loanFiles")),
     clientId: v.optional(v.id("clients")),
+    taskId: v.optional(v.id("tasks")),
     fileName: v.string(),
     fileType: v.string(),
     fileSize: v.number(),
@@ -246,7 +247,7 @@ export default defineSchema({
     uploadedAt: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_workspace", ["workspaceId"]).index("by_loan_file", ["loanFileId"]).index("by_client", ["clientId"]),
+  }).index("by_workspace", ["workspaceId"]).index("by_loan_file", ["loanFileId"]).index("by_client", ["clientId"]).index("by_task", ["taskId"]),
 
   // OCR processing jobs
   ocrJobs: defineTable({
