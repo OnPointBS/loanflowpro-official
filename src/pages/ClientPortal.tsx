@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../auth/AuthProvider';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { 
@@ -24,6 +25,7 @@ import {
 
 const ClientPortal: React.FC = () => {
   const { user, workspace } = useAuth();
+  const { currentWorkspace, currentMembership } = useWorkspace();
   const [activeTab, setActiveTab] = useState('overview');
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -73,7 +75,7 @@ const ClientPortal: React.FC = () => {
 
   // Check if user is a client or if we're in preview mode
   const isClient = clientPermissions?.role === 'CLIENT';
-  const isPreviewMode = !isClient && workspace?.membership?.role === 'ADVISOR' && !clientPermissions; // Allow advisors to preview when no client permissions
+  const isPreviewMode = !isClient && currentMembership?.role === 'ADVISOR' && !clientPermissions; // Allow advisors to preview when no client permissions
 
   if (!isClient && !isPreviewMode) {
     return (
