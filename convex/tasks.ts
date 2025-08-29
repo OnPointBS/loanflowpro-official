@@ -570,3 +570,49 @@ export const listByWorkspace = query({
     return tasks;
   },
 });
+
+export const listByLoanType = query({
+  args: { 
+    workspaceId: v.id("workspaces"),
+    loanTypeId: v.id("loanTypes"),
+  },
+  handler: async (ctx, { workspaceId, loanTypeId }) => {
+    // Check if user has permission to view tasks in this workspace
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", identity.email || ""))
+      .first();
+
+    if (!user) return [];
+
+    const membership = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => q.eq(q.field("userId"), user._id))
+      .first();
+
+    if (!membership || membership.status !== "active") return [];
+
+    // Get all loan files for this loan type
+    const loanFiles = await ctx.db
+      .query("loanFiles")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .filter((q) => q.eq(q.field("loanTypeId"), loanTypeId))
+      .collect();
+
+    // Get all tasks from these loan files
+    const allTasks = [];
+    for (const loanFile of loanFiles) {
+      const tasks = await ctx.db
+        .query("tasks")
+        .withIndex("by_loan_file", (q) => q.eq("loanFileId", loanFile._id))
+        .collect();
+      allTasks.push(...tasks);
+    }
+
+    return allTasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  },
+});
