@@ -50,6 +50,11 @@ import ConvexErrorBoundary from './components/ConvexErrorBoundary';
 // Initialize Convex client with error handling
 const convexUrl = import.meta.env.VITE_CONVEX_URL || 'https://loanflowpro.convex.cloud';
 console.log('Initializing Convex client with URL:', convexUrl);
+console.log('Environment variables:', {
+  VITE_CONVEX_URL: import.meta.env.VITE_CONVEX_URL,
+  NODE_ENV: import.meta.env.NODE_ENV,
+  VITE_APP_ENV: import.meta.env.VITE_APP_ENV
+});
 
 let convex: ConvexReactClient;
 try {
@@ -185,6 +190,9 @@ const VerifyEmail = () => {
 };
 
 function App() {
+  console.log('App component rendering...');
+  console.log('Convex client:', convex);
+  
   return (
     <ErrorBoundary>
       <HelmetProvider>
