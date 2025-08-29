@@ -137,6 +137,29 @@ export const verifyMagicLink = mutation({
       throw new Error("Failed to create or retrieve workspace");
     }
 
+    // Ensure user has a workspace membership
+    let membership = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_user", (q) => q.eq("userId", existingUser._id))
+      .filter((q) => q.eq(q.field("workspaceId"), workspace._id))
+      .first();
+
+    if (!membership) {
+      console.log("🔐 [DEV] Creating workspace membership for user:", existingUser._id);
+      // Create workspace membership
+      const membershipId = await ctx.db.insert("workspaceMembers", {
+        workspaceId: workspace._id,
+        userId: existingUser._id,
+        role: "ADVISOR", // Default to ADVISOR role for workspace owners
+        status: "active",
+        createdAt: Date.now(),
+      });
+      membership = await ctx.db.get(membershipId);
+      console.log("🔐 [DEV] Workspace membership created:", membershipId);
+    } else {
+      console.log("🔐 [DEV] Workspace membership already exists:", membership._id);
+    }
+
     // Generate a session token
     const sessionToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 

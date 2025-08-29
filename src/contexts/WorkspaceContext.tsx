@@ -66,8 +66,13 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         if (parsed.isDemo) {
           console.log('🔍 [DEBUG] - Setting demo workspace');
           
-          // Use the real workspace ID from the demo user if available, otherwise fallback to development ID
-          const workspaceId = parsed.workspaceId || 'm177784ytkc1n475ztft15enth7pg30s';
+          // Use the real workspace ID from the demo user if available
+          const workspaceId = parsed.workspaceId;
+          if (!workspaceId) {
+            console.log('🔍 [DEBUG] - No workspace ID found in demo user, cannot proceed');
+            setIsLoading(false);
+            return;
+          }
           const workspaceData = {
             id: workspaceId,
             name: 'Demo Workspace',
