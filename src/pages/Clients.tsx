@@ -4,7 +4,7 @@ import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
-import { UserPlus, Eye } from 'lucide-react';
+import { UserPlus, Eye, Users, Building, Filter, Settings, EyeOff } from 'lucide-react';
 import ClientInviteManager from '../components/ClientInviteManager';
 
 interface Client {
@@ -17,6 +17,19 @@ interface Client {
   createdAt: number;
   loanTypeCount?: number;
   taskCount?: number;
+}
+
+interface Partner {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  role: string;
+  notes?: string;
+  status: 'active' | 'inactive' | 'invited' | 'declined';
+  createdAt: number;
+  permissions?: string[];
 }
 
 interface ClientLoanType {
@@ -44,6 +57,7 @@ const Clients: React.FC = () => {
   const { workspace } = useWorkspace();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [viewFilter, setViewFilter] = useState<'all' | 'clients' | 'partners'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -51,7 +65,9 @@ const Clients: React.FC = () => {
   const [isDeleteLoanTypeModalOpen, setIsDeleteLoanTypeModalOpen] = useState(false);
   const [isLoanTypeEditModalOpen, setIsLoanTypeEditModalOpen] = useState(false);
   const [isClientDetailModalOpen, setIsClientDetailModalOpen] = useState(false);
+  const [isPartnerDetailModalOpen, setIsPartnerDetailModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
   const [selectedLoanTypeToDelete, setSelectedLoanTypeToDelete] = useState<{ id: string; name: string; clientName: string } | null>(null);
   const [selectedLoanTypeToEdit, setSelectedLoanTypeToEdit] = useState<{ clientId: string; clientLoanType: any; clientName: string } | null>(null);
   const [loanTypeEditForm, setLoanTypeEditForm] = useState({
@@ -158,11 +174,21 @@ const Clients: React.FC = () => {
     { _id: "client3", name: "Mike Davis", email: "mike@example.com", status: "pending", createdAt: Date.now(), updatedAt: Date.now() }
   ];
 
+  // Mock partner data
+  const mockPartners: Partner[] = [
+    { _id: "partner1", name: "Jane Wilson", email: "jane@realestate.com", company: "Wilson Real Estate", role: "Real Estate Agent", status: "active", createdAt: Date.now(), permissions: ["view_loan_progress", "view_client_status"] },
+    { _id: "partner2", name: "Bob Thompson", email: "bob@titleco.com", company: "Thompson Title Co", role: "Title Company", status: "active", createdAt: Date.now(), permissions: ["view_loan_progress", "view_documents"] },
+    { _id: "partner3", name: "Lisa Chen", email: "lisa@insurance.com", company: "Chen Insurance", role: "Insurance Agent", status: "invited", createdAt: Date.now(), permissions: ["view_loan_progress"] }
+  ];
+
   // Use mock data for demo accounts and verified users, or real data for authenticated users
   const shouldUseMockData = isDemoAccount || isVerifiedUser;
   
   const clientsQuery = useQuery(api.clients.listByWorkspace, shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any });
   const clients = shouldUseMockData ? mockClients : (hasValidWorkspace && clientsQuery) ? clientsQuery : [];
+
+  const partnersQuery = useQuery(api.partners.listPartners, shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any });
+  const partners = shouldUseMockData ? mockPartners : (hasValidWorkspace && partnersQuery) ? partnersQuery : [];
 
   const loanTypesQuery = useQuery(
     api.loanTypes.listByWorkspace,
@@ -263,13 +289,63 @@ const Clients: React.FC = () => {
     return [];
   };
 
-  // Filter clients based on search and status
-  const filteredClients = (isDemoAccount ? demoClients : clients).filter(client => {
-    const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         client.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = !statusFilter || client.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  // Filter data based on view filter
+  const filteredClients = clients.filter(client => {
+    if (viewFilter === 'partners') return false;
+    if (searchTerm && !client.name.toLowerCase().includes(searchTerm.toLowerCase()) && !client.email.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (statusFilter && client.status !== statusFilter) return false;
+    return true;
   });
+
+  const filteredPartners = partners.filter(partner => {
+    if (viewFilter === 'clients') return false;
+    if (searchTerm && !partner.name.toLowerCase().includes(searchTerm.toLowerCase()) && !partner.email.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (statusFilter && partner.status !== statusFilter) return false;
+    return true;
+  });
+
+  // Combined data for display
+  const displayData = viewFilter === 'clients' ? filteredClients : 
+                     viewFilter === 'partners' ? filteredPartners : 
+                     [...filteredClients, ...filteredPartners];
+
+  // Helper function to check if item is a client
+  const isClient = (item: Client | Partner): item is Client => {
+    return 'status' in item && ['active', 'inactive', 'prospect'].includes(item.status);
+  };
+
+  // Helper function to check if item is a partner
+  const isPartner = (item: Client | Partner): item is Partner => {
+    return 'status' in item && ['active', 'inactive', 'invited', 'declined'].includes(item.status);
+  };
+
+  // Get status options based on view filter
+  const getStatusOptions = () => {
+    if (viewFilter === 'clients') {
+      return [
+        { value: '', label: 'All Statuses' },
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+        { value: 'prospect', label: 'Prospect' }
+      ];
+    } else if (viewFilter === 'partners') {
+      return [
+        { value: '', label: 'All Statuses' },
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+        { value: 'invited', label: 'Invited' },
+        { value: 'declined', label: 'Declined' }
+      ];
+    }
+    return [
+      { value: '', label: 'All Statuses' },
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+      { value: 'prospect', label: 'Prospect' },
+      { value: 'invited', label: 'Invited' },
+      { value: 'declined', label: 'Declined' }
+    ];
+  };
 
   // Mutations
   const createClient = useMutation(api.clients.create);
@@ -848,12 +924,49 @@ const Clients: React.FC = () => {
         </div>
       </div>
 
+      {/* View Filter */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <button
+          onClick={() => setViewFilter('all')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${
+            viewFilter === 'all'
+              ? 'bg-brand-orange text-white shadow-lg'
+              : 'bg-white/80 text-gunmetal hover:bg-white hover:shadow-md'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>All ({clients.length + partners.length})</span>
+        </button>
+        <button
+          onClick={() => setViewFilter('clients')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${
+            viewFilter === 'clients'
+              ? 'bg-brand-orange text-white shadow-lg'
+              : 'bg-white/80 text-gunmetal hover:bg-white hover:shadow-md'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Clients ({clients.length})</span>
+        </button>
+        <button
+          onClick={() => setViewFilter('partners')}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-xl font-semibold transition-all duration-200 ${
+            viewFilter === 'partners'
+              ? 'bg-brand-orange text-white shadow-lg'
+              : 'bg-white/80 text-gunmetal hover:bg-white hover:shadow-md'
+          }`}
+        >
+          <Building className="w-4 h-4" />
+          <span>Partners ({partners.length})</span>
+        </button>
+      </div>
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <input
             type="text"
-            placeholder="Search clients by name or email..."
+            placeholder={`Search ${viewFilter === 'clients' ? 'clients' : viewFilter === 'partners' ? 'partners' : 'clients and partners'} by name or email...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
@@ -865,10 +978,11 @@ const Clients: React.FC = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-brand-orange/20 rounded-xl focus:outline-none focus:ring-4 focus:ring-brand-orange/20 focus:border-brand-orange text-gunmetal font-medium shadow-lg transition-all duration-200"
           >
-            <option value="">All Statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="prospect">Prospect</option>
+            {getStatusOptions().map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -883,181 +997,274 @@ const Clients: React.FC = () => {
         </div>
       )}
 
-      {/* Clients Grid */}
+      {/* Clients and Partners Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredClients.map((client) => {
-          const clientLoanTypes = getClientLoanTypes(client._id);
-          
-          return (
-            <div key={client._id} className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300">
-              {/* Client Header */}
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-brand-orange to-brand-orange-dark rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-lg font-bold">
-                    {client.name.charAt(0)}
-                  </span>
+        {displayData.map((item) => {
+          if (isClient(item)) {
+            const clientLoanTypes = getClientLoanTypes(item._id);
+            
+            return (
+              <div key={item._id} className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300">
+                {/* Client Header */}
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-brand-orange to-brand-orange-dark rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-lg font-bold">
+                      {item.name.charAt(0)}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-bold text-gunmetal truncate hover:text-brand-orange transition-colors duration-200">
+                      {item.name}
+                    </h3>
+                    <p className="text-sm text-gunmetal-light truncate">{item.email}</p>
+                  </div>
+                  {getStatusBadge(item.status)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-bold text-gunmetal truncate hover:text-brand-orange transition-colors duration-200">
-                    {client.name}
-                  </h3>
-                  <p className="text-sm text-gunmetal-light truncate">{client.email}</p>
-                </div>
-                {getStatusBadge(client.status)}
-              </div>
 
-              {/* Client Details */}
-              <div className="space-y-3 mb-6">
-                {client.phone && (
+                {/* Client Details */}
+                <div className="space-y-3 mb-6">
+                  {item.phone && (
+                    <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <span>{item.phone}</span>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span>{client.phone}</span>
+                    <span>Added {formatDate(item.createdAt)}</span>
                   </div>
-                )}
-                <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>Added {formatDate(client.createdAt)}</span>
                 </div>
-              </div>
 
-              {/* Loan Types Section */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-lg font-semibold text-gunmetal">Loan Types</h4>
-                  <span className="text-sm text-gunmetal-light bg-white/60 px-2 py-1 rounded-full">
-                    {clientLoanTypes.length} assigned
-                  </span>
-                </div>
-                
-                {clientLoanTypes.length > 0 ? (
-                  <div className="space-y-3">
-                    {clientLoanTypes
-                      .sort((a, b) => a.customOrder - b.customOrder)
-                      .map((clientLoanType) => (
-                        <div 
-                          key={clientLoanType._id} 
-                          className="bg-white/60 backdrop-blur-sm rounded-xl p-3 border border-white/20 cursor-pointer hover:bg-white/80 hover:shadow-md transition-all duration-200"
-                          onClick={() => openLoanTypeEditModal(client._id, clientLoanType, client.name)}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <h5 className="font-semibold text-gunmetal text-sm">
-                              {clientLoanType.customName || clientLoanType.loanType?.name}
-                            </h5>
-                            <div className="flex items-center space-x-2">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getCategoryColor(clientLoanType.loanType?.category || '')}`}>
-                                {clientLoanType.loanType?.category}
-                              </span>
-                              <button
-                                onClick={() => openDeleteLoanTypeModal(
-                                  clientLoanType._id,
-                                  clientLoanType.customName || clientLoanType.loanType?.name || 'Unknown Loan Type',
-                                  client.name
-                                )}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors duration-200"
-                                title="Remove loan type"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                          <p className="text-xs text-gunmetal-light mb-2 line-clamp-2">
-                            {clientLoanType.loanType?.description}
-                          </p>
-                          <div className="flex items-center justify-between text-xs text-gunmetal-light">
-                            <span className="text-brand-orange font-medium">
-                              {'taskCount' in clientLoanType ? (clientLoanType.taskCount || 0) : 'Tasks will be calculated'} tasks
-                            </span>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-gunmetal-light">Order: {clientLoanType.customOrder}</span>
-                              <div className="flex space-x-1">
+                {/* Loan Types Section */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-gunmetal">Loan Types</h4>
+                    <span className="text-sm text-gunmetal-light bg-white/60 px-2 py-1 rounded-full">
+                      {clientLoanTypes.length} assigned
+                    </span>
+                  </div>
+                  
+                  {clientLoanTypes.length > 0 ? (
+                    <div className="space-y-3">
+                      {clientLoanTypes
+                        .sort((a, b) => a.customOrder - b.customOrder)
+                        .map((clientLoanType) => (
+                          <div 
+                            key={clientLoanType._id} 
+                            className="bg-white/60 backdrop-blur-sm rounded-xl p-3 border border-white/20 cursor-pointer hover:bg-white/80 hover:shadow-md transition-all duration-200"
+                            onClick={() => openLoanTypeEditModal(item._id, clientLoanType, item.name)}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="font-semibold text-gunmetal text-sm">
+                                {clientLoanType.customName || clientLoanType.loanType?.name}
+                              </h5>
+                              <div className="flex items-center space-x-2">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getCategoryColor(clientLoanType.loanType?.category || '')}`}>
+                                  {clientLoanType.loanType?.category}
+                                </span>
                                 <button
-                                  onClick={() => handleMoveLoanTypeUp(client._id, clientLoanType._id)}
-                                  disabled={clientLoanType.customOrder === 1}
-                                  className={`p-1 rounded transition-colors duration-200 ${
-                                    clientLoanType.customOrder === 1 
-                                      ? 'text-gray-300 cursor-not-allowed' 
-                                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                                  }`}
-                                  title="Move up"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDeleteLoanTypeModal(
+                                      clientLoanType._id,
+                                      clientLoanType.customName || clientLoanType.loanType?.name || 'Unknown Loan Type',
+                                      item.name
+                                    );
+                                  }}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors duration-200"
+                                  title="Remove loan type"
                                 >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleMoveLoanTypeDown(client._id, clientLoanType._id)}
-                                  disabled={clientLoanType.customOrder === clientLoanTypes.length}
-                                  className={`p-1 rounded transition-colors duration-200 ${
-                                    clientLoanType.customOrder === clientLoanTypes.length 
-                                      ? 'text-gray-300 cursor-not-allowed' 
-                                      : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                                  }`}
-                                  title="Move down"
-                                >
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
                                 </button>
                               </div>
                             </div>
+                            <p className="text-xs text-gunmetal-light mb-2 line-clamp-2">
+                              {clientLoanType.loanType?.description}
+                            </p>
+                            <div className="flex items-center justify-between text-xs text-gunmetal-light">
+                              <span className="text-brand-orange font-medium">
+                                {'taskCount' in clientLoanType ? (clientLoanType.taskCount || 0) : 'Tasks will be calculated'} tasks
+                              </span>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-gunmetal-light">Order: {clientLoanType.customOrder}</span>
+                                <div className="flex space-x-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveLoanTypeUp(item._id, clientLoanType._id);
+                                    }}
+                                    disabled={clientLoanType.customOrder === 1}
+                                    className={`p-1 rounded transition-colors duration-200 ${
+                                      clientLoanType.customOrder === 1 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                                    }`}
+                                    title="Move up"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMoveLoanTypeDown(item._id, clientLoanType._id);
+                                    }}
+                                    disabled={clientLoanType.customOrder === clientLoanTypes.length}
+                                    className={`p-1 rounded transition-colors duration-200 ${
+                                      clientLoanType.customOrder === clientLoanTypes.length 
+                                        ? 'text-gray-300 cursor-not-allowed' 
+                                        : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                                    }`}
+                                    title="Move down"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
                           </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <div className="text-4xl mb-2">📋</div>
+                      <p className="text-gunmetal-light mb-2">No loan types assigned</p>
+                      <p className="text-sm text-gray-500">Assign loan types to get started</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => openAssignLoanTypeModal(item)}
+                    className="bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark transition-colors duration-200 text-sm font-medium"
+                  >
+                    Assign Loan Type
+                  </button>
+                  <button
+                    onClick={() => openEditModal(item)}
+                    className="bg-white/80 text-gunmetal border border-gray-300 px-4 py-2 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => openClientDetailModal(item)}
+                    className="bg-white/80 text-gunmetal border border-gray-300 px-4 py-2 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium"
+                  >
+                    View Details
+                  </button>
+                  <button
+                    onClick={() => window.open('/client', '_blank')}
+                    className="bg-brand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-orange/90 transition-all duration-200 flex items-center space-x-2"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>View as Client</span>
+                  </button>
+                </div>
+              </div>
+            );
+          } else if (isPartner(item)) {
+            return (
+              <div key={item._id} className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300">
+                {/* Partner Header */}
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Building className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-bold text-gunmetal truncate hover:text-blue-600 transition-colors duration-200">
+                      {item.name}
+                    </h3>
+                    <p className="text-sm text-gunmetal-light truncate">{item.email}</p>
+                    {item.company && (
+                      <p className="text-xs text-blue-600 font-medium">{item.company}</p>
+                    )}
+                  </div>
+                  {getStatusBadge(item.status)}
+                </div>
+
+                {/* Partner Details */}
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                    <Building className="w-4 h-4" />
+                    <span className="font-medium">{item.role}</span>
+                  </div>
+                  {item.phone && (
+                    <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <span>{item.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2 text-sm text-gunmetal-light">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Added {formatDate(item.createdAt)}</span>
+                  </div>
+                </div>
+
+                {/* Permissions Section */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-gunmetal">Permissions</h4>
+                    <span className="text-sm text-gunmetal-light bg-white/60 px-2 py-1 rounded-full">
+                      {item.permissions?.length || 0} granted
+                    </span>
+                  </div>
+                  
+                  {item.permissions && item.permissions.length > 0 ? (
+                    <div className="space-y-2">
+                      {item.permissions.map((permission, index) => (
+                        <div key={index} className="bg-white/60 backdrop-blur-sm rounded-lg p-2 border border-white/20">
+                          <span className="text-sm text-gunmetal font-medium capitalize">
+                            {permission.replace(/_/g, ' ')}
+                          </span>
                         </div>
                       ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 bg-white/40 rounded-xl border border-white/20">
-                    <div className="text-3xl mb-2">🏠</div>
-                    <p className="text-gunmetal-light text-sm">No loan types assigned</p>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gunmetal-light">No permissions granted</p>
+                    </div>
+                  )}
+                </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {
-                    setSelectedClient(client);
-                    setIsAssignModalOpen(true);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-brand-orange/20 to-brand-orange-dark/20 text-brand-orange px-3 py-2 rounded-xl font-semibold hover:from-brand-orange/30 hover:to-brand-orange-dark/30 transition-all duration-200 border border-brand-orange/30 text-sm"
-                >
-                  Assign
-                </button>
-                <button
-                  onClick={() => openEditModal(client)}
-                  className="flex-1 bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-600 px-3 py-2 rounded-xl font-semibold hover:from-blue-500/30 hover:to-blue-600/30 transition-all duration-200 border border-blue-500/30 text-sm"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => {
-                    setSelectedClient(client);
-                    setIsClientDetailModalOpen(true);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-gunmetal/20 to-gunmetal-dark/20 text-gunmetal px-3 py-2 rounded-xl font-semibold hover:from-gunmetal/30 hover:to-gunmetal-dark/30 transition-all duration-200 border border-gunmetal/30 text-sm"
-                >
-                  View
-                </button>
-                <button
-                  onClick={() => openDeleteModal(client)}
-                  className="flex-1 bg-gradient-to-r from-red-500/20 to-red-600/20 text-red-600 px-3 py-2 rounded-xl font-semibold hover:from-red-500/30 hover:to-red-600/30 transition-all duration-200 border border-red-500/30 text-sm"
-                >
-                  Delete
-                </button>
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => openPartnerDetailModal(item)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm font-medium"
+                  >
+                    View Details
+                  </button>
+                  <button
+                    onClick={() => openEditModal(item as any)}
+                    className="bg-white/80 text-gunmetal border border-gray-300 px-4 py-2 rounded-lg hover:bg-white hover:shadow-md transition-all duration-200 text-sm font-medium"
+                  >
+                    Edit
+                  </button>
+                </div>
               </div>
-            </div>
-          );
+            );
+          }
+          return null;
         })}
       </div>
 
       {/* Empty State */}
-      {filteredClients.length === 0 && (
+      {displayData.length === 0 && (
         <div className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-12 border border-white/30 shadow-xl text-center hover:shadow-2xl transition-all duration-300">
           <div className="text-6xl mb-4">👥</div>
           <h3 className="text-2xl font-bold bg-gradient-to-r from-gunmetal to-gunmetal-dark bg-clip-text text-transparent mb-2">
