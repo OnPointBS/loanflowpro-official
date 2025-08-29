@@ -308,3 +308,30 @@ export const listPartners = query({
       .collect();
   },
 });
+
+// Delete a partner
+export const deletePartner = mutation({
+  args: { partnerId: v.id("partners") },
+  handler: async (ctx, { partnerId }) => {
+    const partner = await ctx.db.get(partnerId);
+    if (!partner) {
+      throw new Error("Partner not found");
+    }
+
+    // Delete all associated partner invites
+    const partnerInvites = await ctx.db
+      .query("partnerInvites")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", partner.workspaceId))
+      .filter((q) => q.eq(q.field("partnerId"), partnerId))
+      .collect();
+
+    for (const invite of partnerInvites) {
+      await ctx.db.delete(invite._id);
+    }
+
+    // Delete the partner
+    await ctx.db.delete(partnerId);
+
+    return { success: true };
+  },
+});
