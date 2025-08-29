@@ -66,8 +66,8 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         if (parsed.isDemo) {
           console.log('🔍 [DEBUG] - Setting demo workspace');
           
-          // Use the real workspace ID from the demo user if available, otherwise fallback to production ID
-          const workspaceId = parsed.workspaceId || 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2';
+          // Use the real workspace ID from the demo user if available, otherwise fallback to development ID
+          const workspaceId = parsed.workspaceId || 'm177784ytkc1n475ztft15enth7pg30s';
           const workspaceData = {
             id: workspaceId,
             name: 'Demo Workspace',
@@ -163,7 +163,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
           if (parsed.isDemo) {
             console.log('🔍 [DEBUG] WorkspaceContext - Storage change detected, updating demo workspace');
             // Try to parse the demo user to get the real workspace ID
-            let workspaceId = 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2'; // Fallback to production ID
+            let workspaceId = 'm177784ytkc1n475ztft15enth7pg30s'; // Fallback to development ID
             try {
               const demoUserData = JSON.parse(e.newValue);
               if (demoUserData.workspaceId) {

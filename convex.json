@@ -9,10 +9,10 @@
   },
   "deployment": {
     "dev": {
-      "url": "http://localhost:8000"
+      "url": "https://marvelous-cheetah-331.convex.cloud"
     },
     "prod": {
-      "url": "https://sensible-ermine-539.convex.cloud"
+      "url": "https://marvelous-cheetah-331.convex.cloud"
     }
   }
 }
