@@ -31,7 +31,7 @@ const PartnerPermissionManager: React.FC<PartnerPermissionManagerProps> = ({
   onClose
 }) => {
   const { user } = useAuth();
-  const { workspace } = useWorkspace();
+  const { currentWorkspace: workspace } = useWorkspace();
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 

@@ -289,3 +289,15 @@ export const getClientPermissions = query({
     };
   },
 });
+
+// Get client invitations by email address
+export const getByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    return await ctx.db
+      .query("clientInvites")
+      .withIndex("by_email", (q) => q.eq("clientEmail", email))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+  },
+});

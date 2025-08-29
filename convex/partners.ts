@@ -406,3 +406,15 @@ export const updatePartnerPermissions = mutation({
     return { success: true };
   },
 });
+
+// Get partner invitations by email address
+export const getByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    return await ctx.db
+      .query("partnerInvites")
+      .withIndex("by_email", (q) => q.eq("partnerEmail", email))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+  },
+});

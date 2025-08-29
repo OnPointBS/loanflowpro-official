@@ -55,7 +55,7 @@ interface ClientLoanType {
 
 const Clients: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
-  const { workspace } = useWorkspace();
+  const { currentWorkspace: workspace } = useWorkspace();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [viewFilter, setViewFilter] = useState<'all' | 'clients' | 'partners'>('all');

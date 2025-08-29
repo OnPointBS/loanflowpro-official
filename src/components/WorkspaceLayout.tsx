@@ -7,7 +7,7 @@ import Sidebar from './Sidebar';
 import WorkspaceSelector from './WorkspaceSelector';
 
 const WorkspaceLayout: React.FC = () => {
-  const { workspace, isLoading } = useWorkspace();
+  const { currentWorkspace, currentMembership, isLoading, hasMultipleRoles, multipleRolesMessage } = useWorkspace();
   const { user } = useAuth();
   
   // Sidebar state
@@ -18,19 +18,19 @@ const WorkspaceLayout: React.FC = () => {
   useEffect(() => {
     console.log('🔍 [DEBUG] WorkspaceLayout - Current state:');
     console.log('🔍 [DEBUG] - isLoading:', isLoading);
-    console.log('🔍 [DEBUG] - workspace:', workspace);
+    console.log('🔍 [DEBUG] - workspace:', currentWorkspace);
     console.log('🔍 [DEBUG] - user:', user);
     console.log('🔍 [DEBUG] - localStorage verifiedUser:', localStorage.getItem('verifiedUser'));
     console.log('🔍 [DEBUG] - localStorage demoUser:', localStorage.getItem('demoUser'));
     
-    if (workspace) {
+    if (currentWorkspace) {
       console.log('🔍 [DEBUG] - Workspace details:');
-      console.log('🔍 [DEBUG]   - ID:', workspace.id);
-      console.log('🔍 [DEBUG]   - Name:', workspace.name);
-      console.log('🔍 [DEBUG]   - Status:', workspace.status);
-      console.log('🔍 [DEBUG]   - Type:', typeof workspace.id);
+      console.log('🔍 [DEBUG]   - ID:', currentWorkspace.id);
+      console.log('🔍 [DEBUG]   - Name:', currentWorkspace.name);
+      console.log('🔍 [DEBUG]   - Status:', currentWorkspace.status);
+      console.log('🔍 [DEBUG]   - Type:', typeof currentWorkspace.id);
     }
-  }, [workspace, isLoading, user]);
+  }, [currentWorkspace, isLoading, user]);
 
   // Handle window resize
   useEffect(() => {
@@ -47,7 +47,7 @@ const WorkspaceLayout: React.FC = () => {
   // Close mobile menu when route changes
   useEffect(() => {
     setIsMobileOpen(false);
-  }, [workspace?.id]);
+  }, [currentWorkspace?.id]);
 
   const handleMenuToggle = () => {
     if (window.innerWidth < 1024) {
@@ -71,7 +71,7 @@ const WorkspaceLayout: React.FC = () => {
           <div className="mt-4 p-4 bg-white/50 rounded-lg text-sm text-gray-600">
             <p>Debug Info:</p>
             <p>isLoading: {String(isLoading)}</p>
-            <p>Workspace: {workspace ? 'Found' : 'Not Found'}</p>
+            <p>Workspace: {currentWorkspace ? 'Found' : 'Not Found'}</p>
             <p>User: {user ? 'Found' : 'Not Found'}</p>
           </div>
         </div>
@@ -80,7 +80,7 @@ const WorkspaceLayout: React.FC = () => {
   }
 
   // If no workspace is selected, show workspace selector or appropriate message
-  if (!workspace) {
+  if (!currentWorkspace) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
         <div className="max-w-2xl w-full bg-white rounded-2xl shadow-2xl p-8">
@@ -100,7 +100,7 @@ const WorkspaceLayout: React.FC = () => {
               <h3 className="font-semibold mb-2 text-slate-900">Debug Information:</h3>
               <div className="space-y-1 text-slate-600">
                 <p><strong>User:</strong> {user ? JSON.stringify(user, null, 2) : 'Not Found'}</p>
-                <p><strong>Workspace:</strong> {workspace ? JSON.stringify(workspace, null, 2) : 'Not Found'}</p>
+                <p><strong>Workspace:</strong> {currentWorkspace ? JSON.stringify(currentWorkspace, null, 2) : 'Not Found'}</p>
                 <p><strong>LocalStorage verifiedUser:</strong> {localStorage.getItem('verifiedUser') || 'Not Found'}</p>
                 <p><strong>LocalStorage demoUser:</strong> {localStorage.getItem('demoUser') || 'Not Found'}</p>
                 <p><strong>isLoading:</strong> {String(isLoading)}</p>
@@ -122,8 +122,8 @@ const WorkspaceLayout: React.FC = () => {
   }
 
   // If workspace is selected, show the main layout
-  if (workspace) {
-    console.log('🔍 [DEBUG] Rendering main layout with workspace:', workspace);
+  if (currentWorkspace) {
+    console.log('🔍 [DEBUG] Rendering main layout with workspace:', currentWorkspace);
     
     return (
       <div className="min-h-screen bg-gray-50">
@@ -155,7 +155,21 @@ const WorkspaceLayout: React.FC = () => {
           {/* Page Content - Full height and width, scrollable */}
           <main className="min-h-screen overflow-y-auto bg-gradient-to-br from-gray-50 to-gray-100 mobile-content">
             <div className="w-full px-4 py-6 lg:px-0 lg:py-0">
-
+              {/* Multiple Roles Notification */}
+              {hasMultipleRoles && multipleRolesMessage && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-blue-800">{multipleRolesMessage}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <Outlet />
             </div>
@@ -174,7 +188,7 @@ const WorkspaceLayout: React.FC = () => {
         <div className="mt-4 p-4 bg-white/50 rounded-lg text-sm text-gray-600">
           <p>Debug Info:</p>
           <p>isLoading: {String(isLoading)}</p>
-          <p>Workspace: {workspace ? 'Found' : 'Not Found'}</p>
+          <p>Workspace: {currentWorkspace ? 'Found' : 'Not Found'}</p>
           <p>User: {user ? 'Found' : 'Not Found'}</p>
         </div>
       </div>

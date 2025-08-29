@@ -6,7 +6,7 @@ import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 
 const Dashboard: React.FC = () => {
-  const { workspace } = useWorkspace();
+  const { currentWorkspace: workspace } = useWorkspace();
   const { user } = useAuth();
   const [selectedTimeframe, setSelectedTimeframe] = useState('today');
   const [animateIn, setAnimateIn] = useState(false);

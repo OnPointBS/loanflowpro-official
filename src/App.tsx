@@ -86,6 +86,11 @@ const VerifyEmail = () => {
           
           localStorage.setItem('verifiedUser', JSON.stringify(authData));
           
+          // Dispatch custom event to notify WorkspaceContext of localStorage change
+          window.dispatchEvent(new CustomEvent('localStorageChange', {
+            detail: { key: 'verifiedUser', newValue: JSON.stringify(authData) }
+          }));
+          
           // Handle different invitation types
           if (inviteType === 'client' && inviteId) {
             // Accept client invitation

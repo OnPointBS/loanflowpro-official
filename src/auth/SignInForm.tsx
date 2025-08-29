@@ -54,6 +54,12 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onClose }) => {
         };
         
         localStorage.setItem("demoUser", JSON.stringify(demoUser));
+        
+        // Dispatch custom event to notify WorkspaceContext of localStorage change
+        window.dispatchEvent(new CustomEvent('localStorageChange', {
+          detail: { key: 'demoUser', newValue: JSON.stringify(demoUser) }
+        }));
+        
         console.log('✅ Demo user set in localStorage:', demoUser);
         
         // Close modal if in modal context

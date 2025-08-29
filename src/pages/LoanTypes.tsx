@@ -101,7 +101,7 @@ interface LoanFile {
 }
 
 const LoanTypes: React.FC = () => {
-  const { workspace } = useWorkspace();
+  const { currentWorkspace: workspace } = useWorkspace();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingLoanType, setEditingLoanType] = useState<LoanType | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<"loanTypes"> | null>(null);

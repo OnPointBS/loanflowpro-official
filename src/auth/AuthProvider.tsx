@@ -91,6 +91,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Clear demo user when verified user is set
             setDemoUser(null);
             localStorage.removeItem("demoUser");
+            
+            // Dispatch custom event to notify WorkspaceContext
+            window.dispatchEvent(new CustomEvent('localStorageChange', {
+              detail: { key: 'verifiedUser', newValue: e.newValue }
+            }));
           }
         } catch (e) {
           console.error('🔍 [DEBUG] - Error parsing verifiedUser from storage change:', e);
@@ -103,15 +108,79 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (parsed.isDemo) {
             console.log('🔍 [DEBUG] AuthProvider - Storage change detected, updating demo user');
             setDemoUser(parsed);
+            
+            // Dispatch custom event to notify WorkspaceContext
+            window.dispatchEvent(new CustomEvent('localStorageChange', {
+              detail: { key: 'demoUser', newValue: e.newValue }
+            }));
           }
         } catch (e) {
           console.error('🔍 [DEBUG] - Error parsing demoUser from storage change:', e);
         }
       }
+      
+      // Handle clearing of users
+      if (e.key === 'verifiedUser' && !e.newValue) {
+        console.log('🔍 [DEBUG] AuthProvider - verifiedUser cleared');
+        setVerifiedUser(null);
+        
+        // Dispatch custom event to notify WorkspaceContext
+        window.dispatchEvent(new CustomEvent('localStorageChange', {
+          detail: { key: 'verifiedUser', newValue: null }
+        }));
+      }
+      
+      if (e.key === 'demoUser' && !e.newValue) {
+        console.log('🔍 [DEBUG] AuthProvider - demoUser cleared');
+        setDemoUser(null);
+        
+        // Dispatch custom event to notify WorkspaceContext
+        window.dispatchEvent(new CustomEvent('localStorageChange', {
+          detail: { key: 'demoUser', newValue: null }
+        }));
+      }
     };
 
+    // Listen for storage changes from other tabs/windows
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    
+    // Listen for custom events from the same tab
+    const handleCustomStorageChange = (e: CustomEvent) => {
+      const { key, newValue } = e.detail;
+      
+      if (key === 'verifiedUser' && newValue) {
+        try {
+          const parsed = JSON.parse(newValue);
+          if (parsed.isAuthenticated) {
+            console.log('🔍 [DEBUG] AuthProvider - Custom storage change detected, updating verified user');
+            setVerifiedUser(parsed);
+            setDemoUser(null);
+            localStorage.removeItem("demoUser");
+          }
+        } catch (e) {
+          console.error('🔍 [DEBUG] - Error parsing verifiedUser from custom storage change:', e);
+        }
+      }
+      
+      if (key === 'demoUser' && newValue) {
+        try {
+          const parsed = JSON.parse(newValue);
+          if (parsed.isDemo) {
+            console.log('🔍 [DEBUG] AuthProvider - Custom storage change detected, updating demo user');
+            setDemoUser(parsed);
+          }
+        } catch (e) {
+          console.error('🔍 [DEBUG] - Error parsing demoUser from custom storage change:', e);
+        }
+      }
+    };
+
+    window.addEventListener('localStorageChange', handleCustomStorageChange as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageChange', handleCustomStorageChange as EventListener);
+    };
   }, []);
   
   // If we have a verified user, use that (highest priority)

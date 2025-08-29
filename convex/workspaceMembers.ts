@@ -98,3 +98,25 @@ export const get = query({
       .first();
   },
 });
+
+// Get all workspaces for a user
+export const listByUser = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const memberships = await ctx.db
+      .query("workspaceMembers")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    // Get workspace details for each membership
+    const workspaces = await Promise.all(
+      memberships.map(async (membership) => {
+        const workspace = await ctx.db.get(membership.workspaceId);
+        return workspace;
+      })
+    );
+
+    return workspaces.filter(Boolean); // Remove any undefined workspaces
+  },
+});

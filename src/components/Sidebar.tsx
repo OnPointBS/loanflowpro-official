@@ -13,7 +13,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, isMobileOpen, onClose, onMenuToggle }) => {
   const location = useLocation();
   const { user, signOut } = useAuth();
-  const { workspace } = useWorkspace();
+  const { currentWorkspace: workspace } = useWorkspace();
 
   const navigation = [
     { name: 'Dashboard', href: '/app/dashboard', icon: '📊' },

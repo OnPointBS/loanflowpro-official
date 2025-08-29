@@ -4,7 +4,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 const Analytics: React.FC = () => {
-  const { workspace } = useWorkspace();
+  const { currentWorkspace: workspace } = useWorkspace();
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedLoanType, setSelectedLoanType] = useState('all');
 

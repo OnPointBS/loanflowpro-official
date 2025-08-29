@@ -1,31 +1,34 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 
 interface Workspace {
   id: string;
   name: string;
-  status: 'active' | 'inactive' | 'suspended';
+  status: 'active' | 'inactive';
   createdAt?: number;
-  updatedAt?: number;
 }
 
-interface Membership {
-  role: 'ADVISOR' | 'STAFF' | 'CLIENT';
-  status: 'active' | 'invited' | 'removed';
+interface WorkspaceMembership {
+  role: 'ADVISOR' | 'STAFF' | 'CLIENT' | 'PARTNER';
+  status: 'active' | 'inactive';
   joinedAt: number;
   permissions: string[];
+  workspaceId: string;
+  userId: string;
 }
 
 interface WorkspaceContextType {
-  workspace: Workspace | null;
-  membership: Membership | null;
+  currentWorkspace: Workspace | null;
+  currentMembership: WorkspaceMembership | null;
   isLoading: boolean;
   error: string | null;
+  hasMultipleRoles: boolean;
+  multipleRolesMessage: string | null;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
 
-// Create a useWorkspace hook that provides the same interface
 export const useWorkspace = () => {
   const context = useContext(WorkspaceContext);
   if (context === undefined) {
@@ -35,132 +38,143 @@ export const useWorkspace = () => {
 };
 
 interface WorkspaceProviderProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }) => {
   const { user, workspace } = useAuth();
   const [currentWorkspace, setCurrentWorkspace] = useState<Workspace | null>(null);
-  const [currentMembership, setCurrentMembership] = useState<Membership | null>(null);
+  const [currentMembership, setCurrentMembership] = useState<WorkspaceMembership | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const [hasMultipleRoles, setHasMultipleRoles] = useState(false);
+  const [multipleRolesMessage, setMultipleRolesMessage] = useState<string | null>(null);
 
-
+  // Main useEffect for workspace management
   useEffect(() => {
     console.log('🔍 [DEBUG] WorkspaceContext - useEffect triggered');
     console.log('🔍 [DEBUG] - useAuth user:', user);
     console.log('🔍 [DEBUG] - useAuth workspace:', workspace);
     console.log('🔍 [DEBUG] - currentWorkspace state:', currentWorkspace);
     console.log('🔍 [DEBUG] - isLoading state:', isLoading);
-    
-    // Set loading to true when user/workspace changes
-    setIsLoading(true);
-    
-    // Check if this is a demo user
-    const storedDemoUser = localStorage.getItem("demoUser");
-    console.log('🔍 [DEBUG] - localStorage demoUser:', storedDemoUser);
-    
-    if (storedDemoUser) {
-      try {
-        const parsed = JSON.parse(storedDemoUser);
-        console.log('🔍 [DEBUG] - Parsed demoUser:', parsed);
-        
-        if (parsed.isDemo) {
-          console.log('🔍 [DEBUG] - Setting demo workspace');
-          
-          // Use the real workspace ID from the demo user if available
-          const workspaceId = parsed.workspaceId;
-          if (!workspaceId) {
-            console.log('🔍 [DEBUG] - No workspace ID found in demo user, cannot proceed');
-            setIsLoading(false);
-            return;
-          }
-          const workspaceData = {
-            id: workspaceId,
-            name: 'Demo Workspace',
-            status: 'active' as const
-          };
-          console.log('🔍 [DEBUG] - Demo workspace object:', workspaceData);
-          setCurrentWorkspace(workspaceData);
-          
-          // Set demo membership
-          const demoMembership = {
-            role: 'ADVISOR' as const,
-            status: 'active' as const,
-            joinedAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
-            permissions: ['Full access']
-          };
-          console.log('🔍 [DEBUG] - Demo membership object:', demoMembership);
-          setCurrentMembership(demoMembership);
-          
-          setIsLoading(false);
-          console.log('🔍 [DEBUG] - Demo workspace context set successfully');
-          return;
-        }
-      } catch (e) {
-        console.error('🔍 [DEBUG] - Error parsing demoUser:', e);
-        localStorage.removeItem("demoUser");
-      }
-    }
+    console.log('🔍 [DEBUG] - localStorage verifiedUser:', localStorage.getItem('verifiedUser'));
+    console.log('🔍 [DEBUG] - localStorage demoUser:', localStorage.getItem('demoUser'));
 
-    // Check if this is a verified user (magic link)
-    const storedVerifiedUser = localStorage.getItem("verifiedUser");
-    console.log('🔍 [DEBUG] - localStorage verifiedUser:', storedVerifiedUser);
-    
+    setIsLoading(true);
+
+    // Priority 1: Check for verified user in localStorage first (highest priority)
+    const storedVerifiedUser = localStorage.getItem('verifiedUser');
     if (storedVerifiedUser) {
       try {
         const parsed = JSON.parse(storedVerifiedUser);
-        console.log('🔍 [DEBUG] - Parsed verifiedUser:', parsed);
-        
-        if (parsed.isAuthenticated && parsed.workspace) {
+        if (parsed.isAuthenticated && parsed.workspace && parsed.user) {
+          console.log('🔍 [DEBUG] - Parsed verifiedUser:', parsed);
           console.log('🔍 [DEBUG] - Setting verified user workspace:', parsed.workspace);
+          
           setCurrentWorkspace(parsed.workspace);
           
-          // Set verified user membership (default to ADVISOR role)
           const verifiedMembership = {
             role: 'ADVISOR' as const,
             status: 'active' as const,
             joinedAt: Date.now(),
-            permissions: ['Full access', 'Manage workspace', 'Invite users', 'View analytics']
+            permissions: ['Full Access'],
+            workspaceId: parsed.workspace.id,
+            userId: parsed.user._id,
           };
-          console.log('🔍 [DEBUG] - Verified user membership object:', verifiedMembership);
-          setCurrentMembership(verifiedMembership);
           
+          setCurrentMembership(verifiedMembership);
           setIsLoading(false);
-          return;
-        } else {
-          console.log('🔍 [DEBUG] - Verified user missing workspace data');
-          console.log('🔍 [DEBUG] - isAuthenticated:', parsed.isAuthenticated);
-          console.log('🔍 [DEBUG] - workspace:', parsed.workspace);
+          console.log('🔍 [DEBUG] - Verified user workspace context set successfully');
+          
+          // Check if user might have multiple roles
+          checkForMultipleRoles(parsed.user.email);
+          return; // Exit early, don't check other sources
         }
-      } catch (e) {
-        console.error('🔍 [DEBUG] - Error parsing verifiedUser:', e);
-        localStorage.removeItem("verifiedUser");
+      } catch (error) {
+        console.error('Error parsing verifiedUser from localStorage:', error);
       }
     }
 
-    // Use real workspace data if available
-    console.log('🔍 [DEBUG] - Checking useAuth workspace:', workspace);
-    if (workspace) {
-      console.log('🔍 [DEBUG] - Setting useAuth workspace:', workspace);
+    // Priority 2: Check for demo user in localStorage AND useAuth workspace
+    const storedDemoUser = localStorage.getItem('demoUser');
+    if (storedDemoUser && user && workspace) {
+      try {
+        const parsed = JSON.parse(storedDemoUser);
+        if (parsed.isAuthenticated && parsed.isDemo && workspace) {
+          console.log('🔍 [DEBUG] - Setting demo user workspace from useAuth:', workspace);
+          setCurrentWorkspace(workspace);
+          
+          const demoMembership = {
+            role: 'ADVISOR' as const,
+            status: 'active' as const,
+            joinedAt: Date.now(),
+            permissions: ['Full Access'],
+            workspaceId: workspace.id,
+            userId: parsed._id,
+          };
+          
+          setCurrentMembership(demoMembership);
+          setIsLoading(false);
+          console.log('🔍 [DEBUG] - Demo user workspace context set successfully');
+          return; // Exit early, don't check other sources
+        }
+      } catch (error) {
+        console.error('Error parsing demoUser from localStorage:', error);
+      }
+    }
+
+    // Priority 3: Check useAuth workspace (fallback)
+    if (user && workspace) {
+      console.log('🔍 [DEBUG] - Checking useAuth workspace:', workspace);
       setCurrentWorkspace(workspace);
       
-      // Set default membership for real workspace
-      const defaultMembership = {
+      // For now, assume ADVISOR role for useAuth users
+      const authMembership = {
         role: 'ADVISOR' as const,
         status: 'active' as const,
         joinedAt: Date.now(),
-        permissions: ['Full access', 'Manage workspace', 'Invite users', 'View analytics']
+        permissions: ['Full Access'],
+        workspaceId: workspace.id,
+        userId: user._id,
       };
-      console.log('🔍 [DEBUG] - Default membership object:', defaultMembership);
-      setCurrentMembership(defaultMembership);
-    } else {
-      console.log('🔍 [DEBUG] - No workspace found from any source');
+      
+      setCurrentMembership(authMembership);
+      setIsLoading(false);
+      console.log('🔍 [DEBUG] - useAuth workspace context set successfully');
+      
+      // Check if user might have multiple roles
+      checkForMultipleRoles(user.email);
+      return;
     }
-    
+
+    // No workspace found from any source
+    console.log('🔍 [DEBUG] - No workspace found from any source');
+    setCurrentWorkspace(null);
+    setCurrentMembership(null);
     setIsLoading(false);
-  }, [user, workspace]); // Re-run when user or workspace changes
+  }, [user, workspace]); // Keep these dependencies but prioritize localStorage
+
+  // Simple function to check if user might have multiple roles
+  const checkForMultipleRoles = async (email: string) => {
+    try {
+      // This is a simple check - in a real app, you might want to query the database
+      // For now, we'll just show a generic message if the user has a verified account
+      const storedVerifiedUser = localStorage.getItem('verifiedUser');
+      if (storedVerifiedUser) {
+        const parsed = JSON.parse(storedVerifiedUser);
+        if (parsed.isAuthenticated && parsed.user.email === email) {
+          // User has a verified account, they might have multiple roles
+          setHasMultipleRoles(true);
+          setMultipleRolesMessage(
+            `Welcome back! You're currently accessing your ${parsed.workspace.name} workspace. ` +
+            `If you need to access a different role or workspace, please contact support.`
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for multiple roles:', error);
+    }
+  };
 
   // Add a listener for storage changes to keep workspace state in sync
   useEffect(() => {
@@ -177,13 +191,19 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
               role: 'ADVISOR' as const,
               status: 'active' as const,
               joinedAt: Date.now(),
-              permissions: ['Full access', 'Manage workspace', 'Invite users', 'View analytics']
+              permissions: ['Full Access'],
+              workspaceId: parsed.workspace.id,
+              userId: parsed.user._id,
             };
+            
             setCurrentMembership(verifiedMembership);
             setIsLoading(false);
+            
+            // Check for multiple roles
+            checkForMultipleRoles(parsed.user.email);
           }
-        } catch (e) {
-          console.error('🔍 [DEBUG] - Error parsing verifiedUser from storage change:', e);
+        } catch (error) {
+          console.error('Error parsing verifiedUser from storage change:', error);
         }
       }
       
@@ -191,60 +211,131 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
       if (e.key === 'demoUser' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          if (parsed.isDemo) {
-            console.log('🔍 [DEBUG] WorkspaceContext - Storage change detected, updating demo workspace');
-            // Try to parse the demo user to get the real workspace ID
-            let workspaceId = 'm177784ytkc1n475ztft15enth7pg30s'; // Fallback to development ID
-            try {
-              const demoUserData = JSON.parse(e.newValue);
-              if (demoUserData.workspaceId) {
-                workspaceId = demoUserData.workspaceId;
-              }
-            } catch (parseError) {
-              console.warn('Could not parse demo user data for workspace ID');
-            }
-            
-            const demoWorkspace = {
-              id: workspaceId,
-              name: 'Demo Workspace',
-              status: 'active' as const
-            };
-            setCurrentWorkspace(demoWorkspace);
+          if (parsed.isAuthenticated && parsed.workspace) {
+            console.log('🔍 [DEBUG] WorkspaceContext - Storage change detected, updating demo user workspace');
+            setCurrentWorkspace(parsed.workspace);
             
             const demoMembership = {
               role: 'ADVISOR' as const,
               status: 'active' as const,
-              joinedAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
-              permissions: ['Full access']
+              joinedAt: Date.now(),
+              permissions: ['Full Access'],
+              workspaceId: parsed.workspace.id,
+              userId: parsed.user._id,
             };
+            
             setCurrentMembership(demoMembership);
             setIsLoading(false);
           }
-        } catch (e) {
-          console.error('🔍 [DEBUG] - Error parsing demoUser from storage change:', e);
+        } catch (error) {
+          console.error('Error parsing demoUser from storage change:', error);
+        }
+      }
+      
+      // Handle clearing of users
+      if (e.key === 'verifiedUser' && !e.newValue) {
+        console.log('🔍 [DEBUG] WorkspaceContext - verifiedUser cleared, resetting workspace');
+        setCurrentWorkspace(null);
+        setCurrentMembership(null);
+        setIsLoading(false);
+        setHasMultipleRoles(false);
+        setMultipleRolesMessage(null);
+      }
+      
+      if (e.key === 'demoUser' && !e.newValue) {
+        console.log('🔍 [DEBUG] WorkspaceContext - demoUser cleared, resetting workspace');
+        setCurrentWorkspace(null);
+        setCurrentMembership(null);
+        setIsLoading(false);
+        setHasMultipleRoles(false);
+        setMultipleRolesMessage(null);
+      }
+    };
+
+    // Listen for storage changes from other tabs/windows
+    window.addEventListener('storage', handleStorageChange);
+
+    // Listen for custom events from the same tab
+    const handleCustomStorageChange = (e: CustomEvent) => {
+      const { key, newValue } = e.detail;
+      
+      if (key === 'verifiedUser' && newValue) {
+        try {
+          const parsed = JSON.parse(newValue);
+          if (parsed.isAuthenticated && parsed.workspace) {
+            console.log('🔍 [DEBUG] WorkspaceContext - Custom storage change detected, updating verified user workspace');
+            setCurrentWorkspace(parsed.workspace);
+            
+            const verifiedMembership = {
+              role: 'ADVISOR' as const,
+              status: 'active' as const,
+              joinedAt: Date.now(),
+              permissions: ['Full Access'],
+              workspaceId: parsed.workspace.id,
+              userId: parsed.user._id,
+            };
+            
+            setCurrentMembership(verifiedMembership);
+            setIsLoading(false);
+            
+            // Check for multiple roles
+            checkForMultipleRoles(parsed.user.email);
+          }
+        } catch (error) {
+          console.error('Error parsing verifiedUser from custom storage change:', error);
+        }
+      }
+      
+      if (key === 'demoUser' && newValue) {
+        try {
+          const parsed = JSON.parse(newValue);
+          if (parsed.isAuthenticated && parsed.workspace) {
+            console.log('🔍 [DEBUG] WorkspaceContext - Custom storage change detected, updating demo user workspace');
+            setCurrentWorkspace(parsed.workspace);
+            
+            const demoMembership = {
+              role: 'ADVISOR' as const,
+              status: 'active' as const,
+              joinedAt: Date.now(),
+              permissions: ['Full Access'],
+              workspaceId: parsed.workspace.id,
+              userId: parsed.user._id,
+            };
+            
+            setCurrentMembership(demoMembership);
+            setIsLoading(false);
+          }
+        } catch (error) {
+          console.error('Error parsing demoUser from custom storage change:', error);
         }
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('localStorageChange', handleCustomStorageChange as EventListener);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localStorageChange', handleCustomStorageChange as EventListener);
+    };
   }, []);
 
-  // Debug logging for state changes
-  useEffect(() => {
-    console.log('🔍 [DEBUG] WorkspaceContext - State changed:');
-    console.log('🔍 [DEBUG] - currentWorkspace:', currentWorkspace);
-    console.log('🔍 [DEBUG] - currentMembership:', currentMembership);
-    console.log('🔍 [DEBUG] - isLoading:', isLoading);
-    console.log('🔍 [DEBUG] - error:', error);
-  }, [currentWorkspace, currentMembership, isLoading, error]);
-
   const value: WorkspaceContextType = {
-    workspace: currentWorkspace,
-    membership: currentMembership,
+    currentWorkspace,
+    currentMembership,
     isLoading,
     error,
+    hasMultipleRoles,
+    multipleRolesMessage,
   };
+
+  console.log('🔍 [DEBUG] WorkspaceContext - State changed:', {
+    currentWorkspace,
+    currentMembership,
+    isLoading,
+    error,
+    hasMultipleRoles,
+    multipleRolesMessage,
+  });
 
   return (
     <WorkspaceContext.Provider value={value}>

@@ -28,7 +28,7 @@ interface LoanType {
 }
 
 const Tasks: React.FC = () => {
-  const { workspace } = useWorkspace();
+  const { currentWorkspace: workspace } = useWorkspace();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskTemplate | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Id<"taskTemplates"> | null>(null);
