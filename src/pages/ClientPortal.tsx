@@ -104,37 +104,62 @@ const ClientPortal: React.FC = () => {
           createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
           updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
           loanFileId: 'sample-loan-file-1' as any,
-          clientNote: 'I will gather these documents this week.'
+          clientNote: 'I will gather these documents this week.',
+          loanTypeId: 'sample-loan-type-1' as any,
+          loanTypeName: 'Residential Mortgage'
         }
       ];
     }
 
-    // Get the first loan type for sample data
-    const sampleLoanType = workspaceLoanTypes[0];
-    
-    // Get task templates for this loan type
-    const loanTypeTaskTemplates = workspaceTaskTemplates.filter(template => 
-      template.loanTypeId === sampleLoanType._id
-    );
+    // Create sample tasks for multiple loan types with proper ordering
+    const allTasks: Array<{
+      _id: any;
+      title: string;
+      description: string;
+      status: 'pending' | 'in_progress' | 'completed' | 'overdue';
+      priority: 'low' | 'normal' | 'high' | 'urgent';
+      dueAt: number;
+      createdAt: number;
+      updatedAt: number;
+      loanFileId: any;
+      clientNote: string | null;
+      loanTypeId: any;
+      loanTypeName: string;
+      loanTypeOrder: number;
+    }> = [];
+    let taskIdCounter = 1;
 
-    // Create sample tasks based on real task templates
-    const tasks = loanTypeTaskTemplates
-      .filter(template => template.assigneeRole === 'CLIENT')
-      .slice(0, 3) // Limit to 3 tasks for preview
-      .map((template, index) => ({
-        _id: `sample-task-${index + 1}` as any,
-        title: template.title,
-        description: template.instructions,
-        status: index === 1 ? 'in_progress' as const : 'pending' as const,
-        priority: template.priority,
-        dueAt: Date.now() + (template.dueInDays * 24 * 60 * 60 * 1000),
-        createdAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
-        updatedAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
-        loanFileId: 'sample-loan-file-1' as any,
-        clientNote: index === 1 ? 'Working on this task.' : null
-      }));
+    // Generate tasks for each loan type in order
+    workspaceLoanTypes.slice(0, 3).forEach((loanType, loanTypeIndex) => {
+      // Get task templates for this loan type
+      const loanTypeTaskTemplates = workspaceTaskTemplates.filter(template => 
+        template.loanTypeId === loanType._id
+      );
 
-    return tasks.length > 0 ? tasks : [
+      // Create sample tasks based on real task templates
+      const tasks = loanTypeTaskTemplates
+        .filter(template => template.assigneeRole === 'CLIENT')
+        .slice(0, 2) // Limit to 2 tasks per loan type for preview
+        .map((template, taskIndex) => ({
+          _id: `sample-task-${taskIdCounter++}` as any,
+          title: template.title,
+          description: template.instructions,
+          status: loanTypeIndex === 0 && taskIndex === 0 ? 'in_progress' as const : 'pending' as const,
+          priority: template.priority,
+          dueAt: Date.now() + (template.dueInDays * 24 * 60 * 60 * 1000),
+          createdAt: Date.now() - ((taskIdCounter + 1) * 24 * 60 * 60 * 1000),
+          updatedAt: Date.now() - ((taskIdCounter + 1) * 24 * 60 * 60 * 1000),
+          loanFileId: `sample-loan-file-${loanTypeIndex + 1}` as any,
+          clientNote: loanTypeIndex === 0 && taskIndex === 0 ? 'Working on this task.' : null,
+          loanTypeId: loanType._id,
+          loanTypeName: loanType.name,
+          loanTypeOrder: loanTypeIndex + 1
+        }));
+
+      allTasks.push(...tasks);
+    });
+
+    return allTasks.length > 0 ? allTasks : [
       {
         _id: 'sample-task-1' as any,
         title: 'Submit Income Verification',
@@ -145,7 +170,10 @@ const ClientPortal: React.FC = () => {
         createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
         updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
         loanFileId: 'sample-loan-file-1' as any,
-        clientNote: 'I will gather these documents this week.'
+        clientNote: 'I will gather these documents this week.',
+        loanTypeId: 'sample-loan-type-1' as any,
+        loanTypeName: 'Residential Mortgage',
+        loanTypeOrder: 1
       }
     ];
   }, [workspaceLoanTypes, workspaceTaskTemplates]);
@@ -159,19 +187,22 @@ const ClientPortal: React.FC = () => {
         createdAt: Date.now() - (7 * 24 * 60 * 60 * 1000),
         updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
         loanTypeId: 'sample-loan-type-1' as any,
+        loanTypeName: 'Residential Mortgage',
+        order: 1
       }];
     }
 
-    // Create sample loan file based on real loan type
-    const sampleLoanType = workspaceLoanTypes[0];
-    return [{
-      _id: 'sample-loan-file-1' as any,
-      status: 'in_progress' as const,
-      currentStage: sampleLoanType.stages[1] || 'Document Collection',
-      createdAt: Date.now() - (7 * 24 * 60 * 60 * 1000),
-      updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
-      loanTypeId: sampleLoanType._id,
-    }];
+    // Create sample loan files for multiple loan types with proper ordering
+    return workspaceLoanTypes.slice(0, 3).map((loanType, index) => ({
+      _id: `sample-loan-file-${index + 1}` as any,
+      status: index === 0 ? 'in_progress' as const : 'draft' as const,
+      currentStage: index === 0 ? (loanType.stages[1] || 'Document Collection') : loanType.stages[0] || 'Application',
+      createdAt: Date.now() - ((7 - index * 2) * 24 * 60 * 60 * 1000),
+      updatedAt: Date.now() - ((1 - index) * 24 * 60 * 60 * 1000),
+      loanTypeId: loanType._id,
+      loanTypeName: loanType.name,
+      order: index + 1
+    }));
   }, [workspaceLoanTypes]);
 
   const sampleDocuments = React.useMemo(() => {
@@ -476,34 +507,105 @@ const ClientPortal: React.FC = () => {
                 {/* Loan Type Information */}
                 {displayLoanFiles.length > 0 && (
                   <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h3 className="font-semibold text-blue-800 mb-2">Current Loan Application</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-blue-600">Loan Type:</p>
-                        <p className="font-medium text-blue-800">
-                          {isPreviewMode && workspaceLoanTypes.length > 0 
-                            ? workspaceLoanTypes[0].name 
-                            : 'Residential Mortgage'
-                          }
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-blue-600">Current Stage:</p>
-                        <p className="font-medium text-blue-800">
-                          {displayLoanFiles[0]?.currentStage || 'Document Collection'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-blue-600">Status:</p>
-                        <p className="font-medium text-blue-800 capitalize">
-                          {displayLoanFiles[0]?.status || 'In Progress'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-blue-600">Tasks:</p>
-                        <p className="font-medium text-blue-800">
-                          {displayTasks.filter(t => t.status === 'completed').length} of {displayTasks.length} completed
-                        </p>
+                    <h3 className="font-semibold text-blue-800 mb-4">Loan Applications Progress</h3>
+                    
+                    {/* Multiple Loan Types with Progress */}
+                    <div className="space-y-4">
+                      {displayLoanFiles.map((loanFile, index) => {
+                        const loanTypeTasks = displayTasks.filter(task => 
+                          task.loanFileId === loanFile._id || 
+                          (task as any).loanTypeId === loanFile.loanTypeId
+                        );
+                        const completedTasks = loanTypeTasks.filter(task => task.status === 'completed').length;
+                        const totalTasks = loanTypeTasks.length;
+                        const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+                        
+                        return (
+                          <div key={loanFile._id} className="border border-blue-200 rounded-lg p-4 bg-white">
+                            {/* Loan Type Header */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm ${
+                                  index === 0 ? 'bg-green-500' : 
+                                  index === 1 ? 'bg-blue-500' : 'bg-gray-400'
+                                }`}>
+                                  {index + 1}
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-blue-800">
+                                    {(loanFile as any).loanTypeName || `Loan Type ${index + 1}`}
+                                  </h4>
+                                  <p className="text-sm text-blue-600">
+                                    {index === 0 ? 'Current Priority' : 
+                                     index === 1 ? 'Next in Queue' : 'Pending'}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  loanFile.status === 'in_progress' ? 'bg-green-100 text-green-800' :
+                                  loanFile.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {loanFile.status.replace('_', ' ')}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="mb-3">
+                              <div className="flex justify-between text-sm text-blue-600 mb-1">
+                                <span>Progress</span>
+                                <span>{completedTasks} of {totalTasks} tasks completed</span>
+                              </div>
+                              <div className="w-full bg-blue-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${progressPercentage}%` }}
+                                ></div>
+                              </div>
+                            </div>
+
+                            {/* Current Stage and Tasks */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-blue-600">Current Stage:</span>
+                                <p className="font-medium text-blue-800">
+                                  {loanFile.currentStage || 'Document Collection'}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-blue-600">Next Action:</span>
+                                <p className="font-medium text-blue-800">
+                                  {loanTypeTasks.find(t => t.status === 'pending')?.title || 'Complete current tasks'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Task Summary */}
+                            {totalTasks > 0 && (
+                              <div className="mt-3 pt-3 border-t border-blue-200">
+                                <div className="flex justify-between text-xs text-blue-600">
+                                  <span>Task Status:</span>
+                                  <span>
+                                    {loanTypeTasks.filter(t => t.status === 'in_progress').length} in progress, 
+                                    {loanTypeTasks.filter(t => t.status === 'pending').length} pending
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Overall Progress Summary */}
+                    <div className="mt-4 pt-4 border-t border-blue-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-blue-800">Overall Progress</span>
+                        <span className="text-sm text-blue-600">
+                          {displayTasks.filter(t => t.status === 'completed').length} of {displayTasks.length} total tasks completed
+                        </span>
                       </div>
                     </div>
                   </div>
