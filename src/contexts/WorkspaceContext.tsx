@@ -157,7 +157,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     }
     
     setIsLoading(false);
-  }, [workspace]);
+  }, []); // Run only once on mount
 
   // Add a listener for storage changes to keep demo workspace state in sync
   useEffect(() => {
