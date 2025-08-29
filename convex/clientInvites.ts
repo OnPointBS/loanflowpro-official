@@ -98,6 +98,102 @@ export const getPendingInvites = query({
   },
 });
 
+// Get all invitations for a workspace (including accepted/declined)
+export const getAllInvites = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, { workspaceId }) => {
+    return await ctx.db
+      .query("clientInvites")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+  },
+});
+
+// Delete a pending invitation
+export const deleteInvite = mutation({
+  args: { inviteId: v.id("clientInvites") },
+  handler: async (ctx, { inviteId }) => {
+    const invite = await ctx.db.get(inviteId);
+    if (!invite) {
+      throw new ConvexError("Invitation not found");
+    }
+
+    if (invite.status !== "pending") {
+      throw new ConvexError("Can only delete pending invitations");
+    }
+
+    // Delete the invitation
+    await ctx.db.delete(inviteId);
+
+    // If the client was only created for this invitation, delete them too
+    const otherInvites = await ctx.db
+      .query("clientInvites")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", invite.workspaceId))
+      .filter((q) => q.eq(q.field("clientId"), invite.clientId))
+      .collect();
+
+    if (otherInvites.length === 0) {
+      // No other invitations for this client, delete the client record
+      await ctx.db.delete(invite.clientId);
+    }
+
+    return { success: true };
+  },
+});
+
+// Resend an invitation
+export const resendInvite = mutation({
+  args: { inviteId: v.id("clientInvites") },
+  handler: async (ctx, { inviteId }) => {
+    const invite = await ctx.db.get(inviteId);
+    if (!invite) {
+      throw new ConvexError("Invitation not found");
+    }
+
+    if (invite.status !== "pending") {
+      throw new ConvexError("Can only resend pending invitations");
+    }
+
+    // Get workspace and inviter details
+    const workspace = await ctx.db.get(invite.workspaceId);
+    const inviter = await ctx.db.get(invite.invitedBy);
+    
+    if (!workspace || !inviter) {
+      throw new ConvexError("Workspace or inviter not found");
+    }
+
+    // Get client details
+    const client = await ctx.db.get(invite.clientId);
+    if (!client) {
+      throw new ConvexError("Client not found");
+    }
+
+    // Update expiration to extend the invitation
+    const newExpiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days from now
+    await ctx.db.patch(inviteId, { 
+      expiresAt: newExpiresAt,
+    });
+
+    // Send new invitation email using the existing sendMagicLink system
+    try {
+      await ctx.scheduler.runAfter(0, api.auth.sendMagicLink, {
+        email: invite.clientEmail,
+        workspaceId: invite.workspaceId,
+        inviteType: "client",
+        inviteId: inviteId,
+        clientName: client.name,
+        workspaceName: workspace.name,
+        inviterName: inviter.name || inviter.email,
+      });
+    } catch (error) {
+      console.error('Failed to schedule resend invitation email:', error);
+      // Don't fail the resend if email fails
+    }
+
+    return { success: true, newExpiresAt };
+  },
+});
+
 // Accept client invitation
 export const acceptInvite = mutation({
   args: { 

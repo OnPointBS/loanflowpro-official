@@ -105,6 +105,103 @@ export const getPendingPartnerInvites = query({
   },
 });
 
+// Get all partner invitations for a workspace (including accepted/declined)
+export const getAllPartnerInvites = query({
+  args: { workspaceId: v.id("workspaces") },
+  handler: async (ctx, { workspaceId }) => {
+    return await ctx.db
+      .query("partnerInvites")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", workspaceId))
+      .collect();
+  },
+});
+
+// Delete a pending partner invitation
+export const deletePartnerInvite = mutation({
+  args: { inviteId: v.id("partnerInvites") },
+  handler: async (ctx, { inviteId }) => {
+    const invite = await ctx.db.get(inviteId);
+    if (!invite) {
+      throw new ConvexError("Invitation not found");
+    }
+
+    if (invite.status !== "pending") {
+      throw new ConvexError("Can only delete pending invitations");
+    }
+
+    // Delete the invitation
+    await ctx.db.delete(inviteId);
+
+    // If the partner was only created for this invitation, delete them too
+    const otherInvites = await ctx.db
+      .query("partnerInvites")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", invite.workspaceId))
+      .filter((q) => q.eq(q.field("partnerId"), invite.partnerId))
+      .collect();
+
+    if (otherInvites.length === 0) {
+      // No other invitations for this partner, delete the partner record
+      await ctx.db.delete(invite.partnerId);
+    }
+
+    return { success: true };
+  },
+});
+
+// Resend a partner invitation
+export const resendPartnerInvite = mutation({
+  args: { inviteId: v.id("partnerInvites") },
+  handler: async (ctx, { inviteId }) => {
+    const invite = await ctx.db.get(inviteId);
+    if (!invite) {
+      throw new ConvexError("Invitation not found");
+    }
+
+    if (invite.status !== "pending") {
+      throw new ConvexError("Can only resend pending invitations");
+    }
+
+    // Get workspace and inviter details
+    const workspace = await ctx.db.get(invite.workspaceId);
+    const inviter = await ctx.db.get(invite.invitedBy);
+    
+    if (!workspace || !inviter) {
+      throw new ConvexError("Workspace or inviter not found");
+    }
+
+    // Get partner details
+    const partner = await ctx.db.get(invite.partnerId);
+    if (!partner) {
+      throw new ConvexError("Partner not found");
+    }
+
+    // Update expiration to extend the invitation
+    const newExpiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days from now
+    await ctx.db.patch(inviteId, { 
+      expiresAt: newExpiresAt,
+    });
+
+    // Send new invitation email using the existing sendMagicLink system
+    try {
+      await ctx.scheduler.runAfter(0, api.auth.sendMagicLink, {
+        email: invite.partnerEmail,
+        workspaceId: invite.workspaceId,
+        inviteType: "partner",
+        inviteId: inviteId,
+        partnerName: partner.name,
+        partnerRole: partner.role,
+        workspaceName: workspace.name,
+        inviterName: inviter.name || inviter.email,
+      });
+    } catch (error) {
+      console.error('Failed to schedule resend partner invitation email:', error);
+      // Don't fail the resend if email fails
+    }
+
+    return { success: true, newExpiresAt };
+  },
+});
+
 // Accept partner invitation
 export const acceptPartnerInvite = mutation({
   args: { 

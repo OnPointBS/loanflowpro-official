@@ -50,9 +50,22 @@ const ClientInviteManager: React.FC<ClientInviteManagerProps> = ({ onClose }) =>
     workspaceId: workspace?.id || '',
   }) || [];
 
+  // Get all invitations to show status
+  const allClientInvites = useQuery(api.clientInvites.getAllInvites, {
+    workspaceId: workspace?.id || '',
+  }) || [];
+
+  const allPartnerInvites = useQuery(api.partners.getAllPartnerInvites, {
+    workspaceId: workspace?.id || '',
+  }) || [];
+
   // Mutations
   const createClientInvite = useMutation(api.clientInvites.createInvite);
   const createPartnerInvite = useMutation(api.partners.createPartnerInvite);
+  const deleteClientInvite = useMutation(api.clientInvites.deleteInvite);
+  const deletePartnerInvite = useMutation(api.partners.deletePartnerInvite);
+  const resendClientInvite = useMutation(api.clientInvites.resendInvite);
+  const resendPartnerInvite = useMutation(api.partners.resendPartnerInvite);
 
   const handlePermissionToggle = (permissionKey: string) => {
     setInviteForm(prev => ({
@@ -61,6 +74,52 @@ const ClientInviteManager: React.FC<ClientInviteManagerProps> = ({ onClose }) =>
         ? prev.permissions.filter(p => p !== permissionKey)
         : [...prev.permissions, permissionKey]
     }));
+  };
+
+  const handleDeleteInvite = async (inviteId: string, type: 'client' | 'partner') => {
+    if (!confirm('Are you sure you want to delete this invitation?')) return;
+    
+    try {
+      if (type === 'client') {
+        await deleteClientInvite({ inviteId: inviteId as any });
+      } else {
+        await deletePartnerInvite({ inviteId: inviteId as any });
+      }
+      alert('Invitation deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete invitation:', error);
+      alert(`Failed to delete invitation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleResendInvite = async (inviteId: string, type: 'client' | 'partner') => {
+    try {
+      if (type === 'client') {
+        await resendClientInvite({ inviteId: inviteId as any });
+      } else {
+        await resendPartnerInvite({ inviteId: inviteId as any });
+      }
+      alert('Invitation resent successfully');
+    } catch (error) {
+      console.error('Failed to resend invitation:', error);
+      alert(`Failed to resend invitation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Pending' },
+      accepted: { color: 'bg-green-100 text-green-800', label: 'Accepted' },
+      declined: { color: 'bg-red-100 text-red-800', label: 'Declined' },
+      expired: { color: 'bg-gray-100 text-gray-800', label: 'Expired' },
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${config.color}`}>
+        {config.label}
+      </span>
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -305,39 +364,131 @@ const ClientInviteManager: React.FC<ClientInviteManagerProps> = ({ onClose }) =>
           </form>
         </div>
 
-        {/* Pending Invitations */}
-        {pendingInvites.length > 0 && (
-          <div className="p-6 border-t border-gray-200">
-            <h3 className="text-lg font-semibold text-gunmetal mb-4">
-              Pending {inviteType === 'client' ? 'Client' : 'Partner'} Invitations
-            </h3>
-            <div className="space-y-3">
-              {pendingInvites.map((invite) => (
-                <div key={invite._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-brand-orange/20 rounded-full flex items-center justify-center">
-                      <Mail className="w-4 h-4 text-brand-orange" />
+        {/* All Invitations */}
+        <div className="p-6 border-t border-gray-200">
+          <h3 className="text-lg font-semibold text-gunmetal mb-4">
+            All Invitations
+          </h3>
+          
+          {/* Client Invitations */}
+          {allClientInvites.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-gunmetal mb-3 flex items-center">
+                <Users className="w-4 h-4 mr-2" />
+                Client Invitations ({allClientInvites.length})
+              </h4>
+              <div className="space-y-3">
+                {allClientInvites.map((invite) => (
+                  <div key={invite._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-brand-orange/20 rounded-full flex items-center justify-center">
+                        <Users className="w-4 h-4 text-brand-orange" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gunmetal">{invite.clientEmail}</p>
+                        <p className="text-sm text-gray-500">
+                          Invited {new Date(invite.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                                         <div>
-                       <p className="font-medium text-gunmetal">
-                         {'clientEmail' in invite ? invite.clientEmail : invite.partnerEmail}
-                       </p>
-                       <p className="text-sm text-gray-500">
-                         Invited {new Date(invite.createdAt).toLocaleDateString()}
-                       </p>
-                     </div>
+                    <div className="flex items-center space-x-3">
+                      {getStatusBadge(invite.status)}
+                      <span className="text-sm text-gray-500">
+                        {formatExpiryDate(invite.expiresAt)}
+                      </span>
+                      {invite.status === 'pending' && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleResendInvite(invite._id, 'client')}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1 rounded transition-colors duration-200"
+                            title="Resend invitation"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteInvite(invite._id, 'client')}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors duration-200"
+                            title="Delete invitation"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">
-                      {formatExpiryDate(invite.expiresAt)}
-                    </span>
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Partner Invitations */}
+          {allPartnerInvites.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-gunmetal mb-3 flex items-center">
+                <Building className="w-4 h-4 mr-2" />
+                Partner Invitations ({allPartnerInvites.length})
+              </h4>
+              <div className="space-y-3">
+                {allPartnerInvites.map((invite) => (
+                  <div key={invite._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                        <Building className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gunmetal">{invite.partnerEmail}</p>
+                        <p className="text-sm text-gray-500">
+                          Invited {new Date(invite.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      {getStatusBadge(invite.status)}
+                      <span className="text-sm text-gray-500">
+                        {formatExpiryDate(invite.expiresAt)}
+                      </span>
+                      {invite.status === 'pending' && (
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleResendInvite(invite._id, 'partner')}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 p-1 rounded transition-colors duration-200"
+                            title="Resend invitation"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteInvite(invite._id, 'partner')}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors duration-200"
+                            title="Delete invitation"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {allClientInvites.length === 0 && allPartnerInvites.length === 0 && (
+            <div className="text-center py-8">
+              <div className="text-4xl mb-2">📧</div>
+              <p className="text-gunmetal-light mb-2">No invitations yet</p>
+              <p className="text-sm text-gray-500">Invitations will appear here once you send them</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
