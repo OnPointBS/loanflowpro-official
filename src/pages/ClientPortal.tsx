@@ -22,7 +22,8 @@ import {
   Edit,
   Check,
   X,
-  Shield
+  Shield,
+  ClipboardList
 } from 'lucide-react';
 
 const ClientPortal: React.FC = () => {
@@ -37,6 +38,7 @@ const ClientPortal: React.FC = () => {
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [taskUploads, setTaskUploads] = useState<Record<string, File | null>>({});
   const [taskUploading, setTaskUploading] = useState<Record<string, boolean>>({});
+  const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
 
   // Get client ID from URL if in preview mode
   const clientIdFromUrl = searchParams.get('clientId');
@@ -381,6 +383,23 @@ const ClientPortal: React.FC = () => {
     }
   };
 
+  const handleUpdateTask = async (taskId: string) => {
+    const note = taskNotes[taskId] || '';
+    if (!note.trim()) return;
+
+    try {
+      await updateTask({
+        taskId: taskId as any,
+        updates: {
+          clientNote: note
+        }
+      });
+      setTaskNotes(prev => ({ ...prev, [taskId]: '' }));
+    } catch (error) {
+      console.error('Failed to update task note:', error);
+    }
+  };
+
   return (
     <>
       <Helmet>
@@ -722,136 +741,196 @@ const ClientPortal: React.FC = () => {
 
           {activeTab === 'tasks' && canViewTasks && (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-2xl font-bold text-gunmetal mb-6">Your Tasks</h2>
-              {displayTasks.length > 0 ? (
-                <div className="space-y-4">
-                  {displayTasks.map((task) => (
-                    <div key={task._id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gunmetal">{task.title}</h3>
-                          <p className="text-sm text-gunmetal-light mb-2">{task.description}</p>
-                          <div className="flex items-center space-x-4 text-sm">
-                            <span className="text-gunmetal-light">Due: {new Date(task.dueAt).toLocaleDateString()}</span>
-                            <span className={`px-2 py-1 rounded text-xs ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              task.priority === 'urgent' ? 'bg-red-200 text-red-900' :
-                              task.priority === 'normal' ? 'bg-blue-100 text-blue-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              {task.priority} priority
-                            </span>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gunmetal">Your Tasks</h2>
+                <p className="text-sm text-gunmetal-light">
+                  {displayTasks.length} total tasks across {displayLoanTypes.length} loan types
+                </p>
+              </div>
+
+              {/* Tasks Organized by Loan Type */}
+              {displayLoanTypes.length > 0 ? (
+                <div className="space-y-6">
+                  {displayLoanTypes.map((loanType, loanTypeIndex) => {
+                    // Get tasks for this specific loan type
+                    const loanTypeTasks = displayTasks.filter(task => {
+                      // For sample tasks, check loanTypeId
+                      if ((task as any).loanTypeId) {
+                        return (task as any).loanTypeId === loanType._id;
+                      }
+                      // For real tasks, we need to find the loan file that matches this loan type
+                      // For now, we'll show all tasks in preview mode
+                      return isPreviewMode;
+                    });
+
+                    if (loanTypeTasks.length === 0) return null;
+
+                    const completedTasks = loanTypeTasks.filter(task => task.status === 'completed').length;
+                    const totalTasks = loanTypeTasks.length;
+                    const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+                    return (
+                      <div key={loanType._id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        {/* Loan Type Header */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                {loanTypeIndex + 1}
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-blue-800">{loanType.name}</h3>
+                                <p className="text-sm text-blue-600">
+                                  {completedTasks} of {totalTasks} tasks completed
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm text-blue-600 mb-1">Progress</div>
+                              <div className="w-24 bg-blue-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${progressPercentage}%` }}
+                                />
+                              </div>
+                              <div className="text-xs text-blue-600 mt-1">{Math.round(progressPercentage)}%</div>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            task.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {task.status.replace('_', ' ')}
-                          </span>
-                          {task.status !== 'completed' && (
-                            <button
-                              onClick={() => handleTaskComplete(task._id)}
-                              className="text-green-600 hover:text-green-800"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                          )}
+
+                        {/* Tasks for this Loan Type */}
+                        <div className="p-6">
+                          <div className="space-y-4">
+                            {loanTypeTasks.map((task) => (
+                              <div key={task._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                {/* Task Header */}
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex-1">
+                                    <h4 className="font-semibold text-gunmetal text-lg">{task.title}</h4>
+                                    <p className="text-gunmetal-light mt-1">{task.description}</p>
+                                  </div>
+                                  <div className="flex items-center space-x-3 ml-4">
+                                    {/* Priority Badge */}
+                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                      task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                      task.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                      task.priority === 'normal' ? 'bg-blue-100 text-blue-800' :
+                                      'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+                                    </span>
+                                    {/* Status Badge */}
+                                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                      task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                      task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                      task.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                                      'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {task.status.replace('_', ' ').charAt(0).toUpperCase() + task.status.replace('_', ' ').slice(1)}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Task Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-sm">
+                                  <div>
+                                    <span className="text-gunmetal-light">Due Date:</span>
+                                    <p className="font-medium text-gunmetal">
+                                      {task.dueAt ? new Date(task.dueAt).toLocaleDateString() : 'No due date'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-gunmetal-light">Created:</span>
+                                    <p className="font-medium text-gunmetal">
+                                      {new Date(task.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-gunmetal-light">Last Updated:</span>
+                                    <p className="font-medium text-gunmetal">
+                                      {new Date(task.updatedAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Client Note Section */}
+                                {task.clientNote && (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                                    <div className="flex items-start space-x-2">
+                                      <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                      <div>
+                                        <p className="text-sm font-medium text-blue-800 mb-1">Your Note:</p>
+                                        <p className="text-sm text-blue-700">{task.clientNote}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Add Note Section */}
+                                <div className="mb-4">
+                                  <label className="block text-sm font-medium text-gunmetal mb-2">
+                                    Add a note about this task:
+                                  </label>
+                                  <textarea
+                                    value={taskNotes[task._id] || ''}
+                                    onChange={(e) => setTaskNotes(prev => ({ ...prev, [task._id]: e.target.value }))}
+                                    placeholder="Add your notes, questions, or updates here..."
+                                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    rows={3}
+                                  />
+                                  <div className="flex justify-end mt-2">
+                                    <button
+                                      onClick={() => handleUpdateTask(task._id)}
+                                      className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
+                                    >
+                                      Update Note
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* File Upload Section */}
+                                <div className="border-t pt-4">
+                                  <h5 className="font-medium text-gunmetal mb-3">Upload Files for This Task</h5>
+                                  <div className="flex items-center space-x-4">
+                                    <input
+                                      type="file"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          setTaskUploads(prev => ({ ...prev, [task._id]: file }));
+                                        }
+                                      }}
+                                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                    />
+                                    <button
+                                      onClick={() => handleTaskFileUpload(task._id)}
+                                      disabled={!taskUploads[task._id] || taskUploading[task._id]}
+                                      className="bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange/90 transition-colors disabled:opacity-50 text-sm"
+                                    >
+                                      {taskUploading[task._id] ? 'Uploading...' : 'Upload'}
+                                    </button>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-2">
+                                    Supported formats: PDF, DOC, DOCX, JPG, JPEG, PNG
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-
-                      {/* Task Actions */}
-                      {task.status !== 'completed' && (
-                        <div className="border-t pt-3">
-                          <h4 className="font-medium text-gunmetal mb-2">Add Note or Update</h4>
-                          {editingTask === task._id ? (
-                            <div className="flex items-center space-x-2">
-                              <textarea
-                                value={taskNote}
-                                onChange={(e) => setTaskNote(e.target.value)}
-                                placeholder="Add a note about this task..."
-                                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                                rows={2}
-                              />
-                              <button
-                                onClick={() => handleTaskUpdate(task._id, taskNote)}
-                                className="bg-brand-orange text-white px-3 py-2 rounded-lg hover:bg-brand-orange/90 transition-colors"
-                              >
-                                Save
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setEditingTask(null);
-                                  setTaskNote('');
-                                }}
-                                className="text-gray-500 hover:text-gray-700"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setEditingTask(task._id)}
-                              className="text-brand-orange hover:text-brand-orange/80 text-sm"
-                            >
-                              Add Note
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Task File Upload */}
-                      {task.status !== 'completed' && (
-                        <div className="border-t pt-3 mt-3">
-                          <h4 className="font-medium text-gunmetal mb-2">Upload Files for This Task</h4>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="file"
-                              onChange={(e) => setTaskUploads(prev => ({ 
-                                ...prev, 
-                                [task._id]: e.target.files?.[0] || null 
-                              }))}
-                              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                            />
-                            <button
-                              onClick={() => handleTaskFileUpload(task._id)}
-                              disabled={!taskUploads[task._id] || taskUploading[task._id]}
-                              className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
-                            >
-                              {taskUploading[task._id] ? 'Uploading...' : 'Upload'}
-                            </button>
-                          </div>
-                          {taskUploads[task._id] && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Selected: {taskUploads[task._id]?.name}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Client Notes */}
-                      {task.clientNote && (
-                        <div className="border-t pt-3 mt-3">
-                          <h4 className="font-medium text-gunmetal mb-2">Your Notes</h4>
-                          <p className="text-sm text-gunmetal-light bg-blue-50 p-3 rounded-lg">
-                            {task.clientNote}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <CheckCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <div className="text-center py-12">
+                  <ClipboardList className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <p className="text-gunmetal-light mb-2">
                     {isPreviewMode ? 'No tasks in preview mode' : 'No tasks found'}
                   </p>
                   <p className="text-sm text-gray-500">
-                    {isPreviewMode ? 'Tasks will appear here when assigned to clients' : 'Your tasks will appear here once they are assigned'}
+                    {isPreviewMode ? 'Tasks will appear here when clients are assigned to them' : 'Your tasks will appear here once they are assigned'}
                   </p>
                 </div>
               )}
