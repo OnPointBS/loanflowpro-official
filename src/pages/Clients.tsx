@@ -1282,11 +1282,11 @@ const Clients: React.FC = () => {
                     View Details
                   </button>
                   <button
-                    onClick={() => window.open('/client', '_blank')}
-                    className="bg-brand-orange text-white px-6 py-3 rounded-lg font-semibold hover:bg-brand-orange/90 transition-all duration-200 flex items-center space-x-2"
+                    onClick={() => window.open(`/client?clientId=${item._id}`, '_blank')}
+                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm font-medium"
                   >
-                    <Eye className="w-4 h-4" />
-                    <span>View as Client</span>
+                    <Eye className="w-4 h-4 mr-1" />
+                    View as Client
                   </button>
                   <button
                     onClick={() => {
@@ -1377,7 +1377,7 @@ const Clients: React.FC = () => {
                     View Details
                   </button>
                   <button
-                    onClick={() => window.open('/partner', '_blank')}
+                    onClick={() => window.open(`/partner?partnerId=${item._id}`, '_blank')}
                     className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm font-medium"
                   >
                     <Eye className="w-4 h-4 mr-1" />

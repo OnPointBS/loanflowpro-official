@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../auth/AuthProvider';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useQuery, useMutation } from 'convex/react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../convex/_generated/api';
 import { 
   FileText, 
@@ -29,6 +30,7 @@ import {
 const PartnerPortal: React.FC = () => {
   const { user, workspace } = useAuth();
   const { workspace: currentWorkspace, membership: currentMembership } = useWorkspace();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -36,11 +38,19 @@ const PartnerPortal: React.FC = () => {
   const [taskNote, setTaskNote] = useState('');
   const [editingTask, setEditingTask] = useState<string | null>(null);
 
+  // Get partner ID from URL if in preview mode
+  const partnerIdFromUrl = searchParams.get('partnerId');
+
   // Get partner permissions and data (only for partners)
   const partnerPermissions = user?.role === 'PARTNER' ? useQuery(api.partners.getPartnerPermissions, {
     workspaceId: workspace?.id || '',
     userId: user?._id || '',
   }) : null;
+
+  // Get specific partner information for preview mode
+  const specificPartner = useQuery(api.partners.getPartner, {
+    partnerId: partnerIdFromUrl as any,
+  });
 
   // Get partner's accessible loan files (if they have permission)
   const loanFiles = useQuery(api.loanFiles.listByWorkspace, {
@@ -201,7 +211,7 @@ const PartnerPortal: React.FC = () => {
                   <div className="mt-2 p-2 bg-blue-100 rounded border border-blue-200">
                     <p className="text-xs text-blue-800 font-medium">Previewing Partner</p>
                     <p className="text-xs text-blue-800">
-                      {partnerInfo?.name || 'No partner data'}
+                      {specificPartner?.name || 'No partner data'}
                     </p>
                   </div>
                 )}

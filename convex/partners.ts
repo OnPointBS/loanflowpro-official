@@ -269,6 +269,17 @@ export const declinePartnerInvite = mutation({
   },
 });
 
+// Get partner by ID
+export const getPartner = query({
+  args: { 
+    partnerId: v.id("partners")
+  },
+  handler: async (ctx, { partnerId }) => {
+    const partner = await ctx.db.get(partnerId);
+    return partner;
+  },
+});
+
 // Get partner by email
 export const getPartnerByEmail = query({
   args: { 

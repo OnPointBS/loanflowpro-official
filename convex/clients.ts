@@ -45,6 +45,17 @@ export const get = query({
   },
 });
 
+// Get client by ID
+export const getClient = query({
+  args: { 
+    clientId: v.id("clients")
+  },
+  handler: async (ctx, { clientId }) => {
+    const client = await ctx.db.get(clientId);
+    return client;
+  },
+});
+
 // List all clients in a workspace
 export const listByWorkspace = query({
   args: { workspaceId: v.id("workspaces") },

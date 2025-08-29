@@ -3,6 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../auth/AuthProvider';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useQuery, useMutation } from 'convex/react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../convex/_generated/api';
 import { 
   FileText, 
@@ -26,6 +27,7 @@ import {
 const ClientPortal: React.FC = () => {
   const { user, workspace } = useAuth();
   const { workspace: currentWorkspace, membership: currentMembership } = useWorkspace();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [newMessage, setNewMessage] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -33,11 +35,19 @@ const ClientPortal: React.FC = () => {
   const [taskNote, setTaskNote] = useState('');
   const [editingTask, setEditingTask] = useState<string | null>(null);
 
+  // Get client ID from URL if in preview mode
+  const clientIdFromUrl = searchParams.get('clientId');
+
   // Get client permissions and data (only for clients)
   const clientPermissions = user?.role === 'CLIENT' ? useQuery(api.clientInvites.getClientPermissions, {
     workspaceId: workspace?.id || '',
     userId: user?._id || '',
   }) : null;
+
+  // Get specific client information for preview mode
+  const specificClient = useQuery(api.clients.getClient, {
+    clientId: clientIdFromUrl as any,
+  });
 
   // Get client's loan files (if they have permission)
   const loanFiles = useQuery(api.loanFiles.listByClient, {
@@ -225,7 +235,7 @@ const ClientPortal: React.FC = () => {
                   <div className="mt-2 p-2 bg-brand-orange/10 rounded border border-brand-orange/20">
                     <p className="text-xs text-brand-orange font-medium">Previewing Client</p>
                     <p className="text-xs text-brand-orange">
-                      {clientInfo?.name || 'No client data'}
+                      {specificClient?.name || 'No client data'}
                     </p>
                   </div>
                 )}
