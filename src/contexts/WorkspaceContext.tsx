@@ -162,7 +162,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
           if (parsed.isDemo) {
             console.log('🔍 [DEBUG] WorkspaceContext - Storage change detected, updating demo workspace');
             const demoWorkspace = {
-              id: 'm177784ytkc1n475ztft15enth7pg30s',
+              id: 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2', // Current production workspace ID
               name: 'Demo Workspace',
               status: 'active' as const
             };
