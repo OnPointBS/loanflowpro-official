@@ -159,9 +159,32 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     setIsLoading(false);
   }, []); // Run only once on mount
 
-  // Add a listener for storage changes to keep demo workspace state in sync
+  // Add a listener for storage changes to keep workspace state in sync
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
+      // Handle verifiedUser changes (magic link users)
+      if (e.key === 'verifiedUser' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed.isAuthenticated && parsed.workspace) {
+            console.log('🔍 [DEBUG] WorkspaceContext - Storage change detected, updating verified user workspace');
+            setCurrentWorkspace(parsed.workspace);
+            
+            const verifiedMembership = {
+              role: 'ADVISOR' as const,
+              status: 'active' as const,
+              joinedAt: Date.now(),
+              permissions: ['Full access', 'Manage workspace', 'Invite users', 'View analytics']
+            };
+            setCurrentMembership(verifiedMembership);
+            setIsLoading(false);
+          }
+        } catch (e) {
+          console.error('🔍 [DEBUG] - Error parsing verifiedUser from storage change:', e);
+        }
+      }
+      
+      // Handle demoUser changes
       if (e.key === 'demoUser' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
