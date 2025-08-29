@@ -66,9 +66,10 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
         if (parsed.isDemo) {
           console.log('🔍 [DEBUG] - Setting demo workspace');
           
-          // Provide demo workspace data with current production workspace ID
+          // Use the real workspace ID from the demo user if available, otherwise fallback to production ID
+          const workspaceId = parsed.workspaceId || 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2';
           const workspaceData = {
-            id: 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2', // Current production workspace ID
+            id: workspaceId,
             name: 'Demo Workspace',
             status: 'active' as const
           };
@@ -161,8 +162,19 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
           const parsed = JSON.parse(e.newValue);
           if (parsed.isDemo) {
             console.log('🔍 [DEBUG] WorkspaceContext - Storage change detected, updating demo workspace');
+            // Try to parse the demo user to get the real workspace ID
+            let workspaceId = 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2'; // Fallback to production ID
+            try {
+              const demoUserData = JSON.parse(e.newValue);
+              if (demoUserData.workspaceId) {
+                workspaceId = demoUserData.workspaceId;
+              }
+            } catch (parseError) {
+              console.warn('Could not parse demo user data for workspace ID');
+            }
+            
             const demoWorkspace = {
-              id: 'm17arvfhnfkcz6zybdvnjcqgn57pk7r2', // Current production workspace ID
+              id: workspaceId,
               name: 'Demo Workspace',
               status: 'active' as const
             };

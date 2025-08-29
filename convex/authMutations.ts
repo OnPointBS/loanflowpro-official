@@ -160,6 +160,110 @@ export const verifyMagicLink = mutation({
   },
 });
 
+// Create demo account with proper workspace association
+export const createDemoAccount = mutation({
+  args: {},
+  handler: async (ctx) => {
+    try {
+      console.log("🚀 Creating demo account...");
+      
+      // Check if demo user already exists
+      let demoUser = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", "demo@loanflowpro.com"))
+        .first();
+      
+      if (!demoUser) {
+        console.log("📝 Creating new demo user...");
+        // Create demo user
+        const userId = await ctx.db.insert("users", {
+          email: "demo@loanflowpro.com",
+          name: "Demo User",
+          password: "", // No password for demo users
+          emailVerified: true, // Demo users are pre-verified
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        demoUser = await ctx.db.get(userId);
+        console.log("✅ Demo user created:", userId);
+      } else {
+        console.log("ℹ️ Demo user already exists:", demoUser._id);
+      }
+      
+      // Check if demo workspace already exists
+      let demoWorkspace = await ctx.db
+        .query("workspaces")
+        .withIndex("by_name", (q) => q.eq("name", "Demo Financial Advisory"))
+        .first();
+      
+      if (!demoWorkspace) {
+        console.log("🏢 Creating new demo workspace...");
+        // Create demo workspace
+        const workspaceId = await ctx.db.insert("workspaces", {
+          name: "Demo Financial Advisory",
+          ownerUserId: demoUser!._id,
+          status: "active",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        demoWorkspace = await ctx.db.get(workspaceId);
+        console.log("✅ Demo workspace created:", workspaceId);
+      } else {
+        console.log("ℹ️ Demo workspace already exists:", demoWorkspace._id);
+      }
+      
+      // Check if workspace membership exists
+      let membership = await ctx.db
+        .query("workspaceMembers")
+        .withIndex("by_user", (q) => q.eq("userId", demoUser!._id))
+        .filter((q) => q.eq(q.field("workspaceId"), demoWorkspace!._id))
+        .first();
+      
+      if (!membership) {
+        console.log("👥 Creating workspace membership...");
+        // Create workspace membership
+        const membershipId = await ctx.db.insert("workspaceMembers", {
+          workspaceId: demoWorkspace!._id,
+          userId: demoUser!._id,
+          role: "ADVISOR",
+          status: "active",
+          createdAt: Date.now(),
+        });
+        membership = await ctx.db.get(membershipId);
+        console.log("✅ Workspace membership created:", membershipId);
+      } else {
+        console.log("ℹ️ Workspace membership already exists:", membership._id);
+      }
+      
+      console.log("🎉 Demo account setup complete!");
+      
+      return {
+        success: true,
+        user: {
+          _id: demoUser!._id,
+          email: demoUser!.email,
+          name: demoUser!.name,
+          emailVerified: true,
+          isDemo: true
+        },
+        workspace: {
+          id: demoWorkspace!._id,
+          name: demoWorkspace!.name,
+          status: demoWorkspace!.status
+        },
+        membership: {
+          role: membership!.role,
+          status: membership!.status
+        }
+      };
+      
+    } catch (error) {
+      console.error("❌ Error creating demo account:", error);
+      throw new Error(`Failed to create demo account: ${error}`);
+    }
+  },
+});
+
 // Get current user (for demo/testing purposes)
 export const getCurrentUser = mutation({
   args: {},

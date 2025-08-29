@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../../convex/_generated/api";
 
@@ -14,37 +14,65 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onClose }) => {
   const [step, setStep] = useState<"email" | "check-email">("email");
   const navigate = useNavigate();
 
-  // Try to get the Convex action, but handle the case when it's not available
+  // Try to get the Convex actions, but handle the case when they're not available
   let sendMagicLink: any = null;
+  let createDemoAccount: any = null;
   try {
     sendMagicLink = useAction(api.auth.sendMagicLink);
+    createDemoAccount = useMutation(api.authMutations.createDemoAccount);
   } catch (err) {
     console.warn("Convex not available:", err);
   }
 
-  const handleDemoAccount = () => {
+  const handleDemoAccount = async () => {
     console.log('🚀 Demo account clicked - setting up demo user...');
     
-    // Set demo user in localStorage for immediate access
-    const demoUser = {
-      _id: "demo-user-id",
-      email: "demo@loanflowpro.com",
-      name: "Demo User",
-      isDemo: true,
-      sessionToken: "demo-session-token"
-    };
-    
-    localStorage.setItem("demoUser", JSON.stringify(demoUser));
-    console.log('✅ Demo user set in localStorage:', demoUser);
-    
-    // Close modal if in modal context
-    if (onClose) {
-      onClose();
+    if (!createDemoAccount) {
+      console.error('❌ Demo account creation not available');
+      setError("Demo account creation is not available. Please try again later.");
+      return;
     }
     
-    // Use React Router navigation instead of window.location
-    console.log('🔄 Navigating to dashboard...');
-    navigate("/app/dashboard", { replace: true });
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      console.log('🔧 Creating demo account in database...');
+      const result = await createDemoAccount();
+      
+      if (result.success) {
+        console.log('✅ Demo account created successfully:', result);
+        
+        // Set demo user in localStorage with real database data
+        const demoUser = {
+          _id: result.user._id,
+          email: result.user.email,
+          name: result.user.name,
+          isDemo: true,
+          sessionToken: "demo-session-token",
+          workspaceId: result.workspace.id
+        };
+        
+        localStorage.setItem("demoUser", JSON.stringify(demoUser));
+        console.log('✅ Demo user set in localStorage:', demoUser);
+        
+        // Close modal if in modal context
+        if (onClose) {
+          onClose();
+        }
+        
+        // Use React Router navigation instead of window.location
+        console.log('🔄 Navigating to dashboard...');
+        navigate("/app/dashboard", { replace: true });
+      } else {
+        throw new Error('Demo account creation failed');
+      }
+    } catch (error) {
+      console.error('❌ Error creating demo account:', error);
+      setError("Failed to create demo account. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
