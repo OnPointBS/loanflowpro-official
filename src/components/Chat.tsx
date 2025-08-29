@@ -11,9 +11,10 @@ interface ChatProps {
   isOpen: boolean;
   onClose: () => void;
   isClientPortal?: boolean; // To determine if this is from client portal
+  isDemo?: boolean; // To determine if this is demo mode
 }
 
-const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, onClose, isClientPortal = false }) => {
+const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, onClose, isClientPortal = false, isDemo = false }) => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -21,7 +22,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
   // Get messages between current user and client
   const messages = useQuery(api.messages.getMessages, 
-    workspaceId && user?._id && clientId ? {
+    !isDemo && workspaceId && user?._id && clientId ? {
       workspaceId: workspaceId as any,
       userId1: user._id as any,
       userId2: clientId as any,
@@ -30,7 +31,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
   // Get unread message count
   const unreadCount = useQuery(api.messages.getUnreadMessageCountBetweenUsers, 
-    workspaceId && user?._id && clientId ? {
+    !isDemo && workspaceId && user?._id && clientId ? {
       workspaceId: workspaceId as any,
       userId1: user._id as any,
       userId2: clientId as any,
@@ -48,18 +49,25 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
   // Mark messages as read when chat is opened
   useEffect(() => {
-    if (isOpen && unreadCount > 0 && user?._id && workspaceId && clientId) {
+    if (!isDemo && isOpen && unreadCount > 0 && user?._id && workspaceId && clientId) {
       markAsRead({
         workspaceId: workspaceId as any,
         userId1: user._id as any,
         userId2: clientId as any,
       });
     }
-  }, [isOpen, unreadCount, user?._id, workspaceId, clientId, markAsRead]);
+  }, [isDemo, isOpen, unreadCount, user?._id, workspaceId, clientId, markAsRead]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !user?._id) return;
+
+    if (isDemo) {
+      // In demo mode, just simulate sending a message
+      console.log('Demo mode: Message would be sent:', message.trim());
+      setMessage('');
+      return;
+    }
 
     setIsSending(true);
     try {

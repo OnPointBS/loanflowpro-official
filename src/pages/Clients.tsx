@@ -3083,6 +3083,7 @@ const Clients: React.FC = () => {
           clientName={selectedChatClient.name}
           isOpen={isChatOpen}
           onClose={closeChat}
+          isDemo={isDemoAccount}
         />
       )}
     </div>
