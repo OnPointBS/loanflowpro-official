@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useAuth } from '../auth/AuthProvider';
 import { useWorkspace } from '../contexts/WorkspaceContext';
@@ -74,89 +74,125 @@ const ClientPortal: React.FC = () => {
     clientId: user?._id || '',
   }) || [];
 
+  // Get workspace loan types and task templates for realistic sample data
+  const workspaceLoanTypes = useQuery(api.loanTypes.listByWorkspace, {
+    workspaceId: workspace?.id || '',
+  }) || [];
+
+  const workspaceTaskTemplates = useQuery(api.taskTemplates.listByWorkspace, {
+    workspaceId: workspace?.id || '',
+  }) || [];
+
   // Get client information for preview mode (only if we have a client ID)
   const clientInfo = clientIdFromUrl ? useQuery(api.clients.getClientByEmail, {
     workspaceId: workspace?.id || '',
     email: user?.email || '',
   }) : null;
 
-  // Sample data for preview mode
-  const sampleTasks = [
-    {
-      _id: 'sample-task-1' as any,
-      title: 'Submit Income Verification',
-      description: 'Please provide your most recent pay stubs and W-2 forms for income verification.',
-      status: 'pending' as const,
-      priority: 'high' as const,
-      dueAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days from now
-      createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000), // 3 days ago
-      updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
-      loanFileId: 'sample-loan-file-1' as any,
-      clientNote: 'I will gather these documents this week.'
-    },
-    {
-      _id: 'sample-task-2' as any,
-      title: 'Complete Credit Authorization',
-      description: 'Sign the credit authorization form to allow us to pull your credit report.',
-      status: 'in_progress' as const,
-      priority: 'normal' as const,
-      dueAt: Date.now() + (3 * 24 * 60 * 60 * 1000), // 3 days from now
-      createdAt: Date.now() - (5 * 24 * 60 * 60 * 1000), // 5 days ago
-      updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000), // 1 day ago
-      loanFileId: 'sample-loan-file-1' as any,
-      clientNote: 'Form completed and submitted.'
-    },
-    {
-      _id: 'sample-task-3' as any,
-      title: 'Provide Bank Statements',
-      description: 'Upload your last 3 months of bank statements for asset verification.',
-      status: 'pending' as const,
-      priority: 'urgent' as const,
-      dueAt: Date.now() + (2 * 24 * 60 * 60 * 1000), // 2 days from now
-      createdAt: Date.now() - (2 * 24 * 60 * 60 * 1000), // 2 days ago
-      updatedAt: Date.now() - (2 * 24 * 60 * 60 * 1000),
-      loanFileId: 'sample-loan-file-1' as any,
-      clientNote: null
+  // Sample data for preview mode - dynamically generated based on real workspace data
+  const sampleTasks = React.useMemo(() => {
+    if (workspaceLoanTypes.length === 0 || workspaceTaskTemplates.length === 0) {
+      // Fallback sample data if no real data exists
+      return [
+        {
+          _id: 'sample-task-1' as any,
+          title: 'Submit Income Verification',
+          description: 'Please provide your most recent pay stubs and W-2 forms for income verification.',
+          status: 'pending' as const,
+          priority: 'high' as const,
+          dueAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
+          createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
+          updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
+          loanFileId: 'sample-loan-file-1' as any,
+          clientNote: 'I will gather these documents this week.'
+        }
+      ];
     }
-  ];
 
-  const sampleLoanFiles = [
-    {
+    // Get the first loan type for sample data
+    const sampleLoanType = workspaceLoanTypes[0];
+    
+    // Get task templates for this loan type
+    const loanTypeTaskTemplates = workspaceTaskTemplates.filter(template => 
+      template.loanTypeId === sampleLoanType._id
+    );
+
+    // Create sample tasks based on real task templates
+    const tasks = loanTypeTaskTemplates
+      .filter(template => template.assigneeRole === 'CLIENT')
+      .slice(0, 3) // Limit to 3 tasks for preview
+      .map((template, index) => ({
+        _id: `sample-task-${index + 1}` as any,
+        title: template.title,
+        description: template.instructions,
+        status: index === 1 ? 'in_progress' as const : 'pending' as const,
+        priority: template.priority,
+        dueAt: Date.now() + (template.dueInDays * 24 * 60 * 60 * 1000),
+        createdAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
+        updatedAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
+        loanFileId: 'sample-loan-file-1' as any,
+        clientNote: index === 1 ? 'Working on this task.' : null
+      }));
+
+    return tasks.length > 0 ? tasks : [
+      {
+        _id: 'sample-task-1' as any,
+        title: 'Submit Income Verification',
+        description: 'Please provide your most recent pay stubs and W-2 forms for income verification.',
+        status: 'pending' as const,
+        priority: 'high' as const,
+        dueAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
+        createdAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
+        updatedAt: Date.now() - (3 * 24 * 60 * 60 * 1000),
+        loanFileId: 'sample-loan-file-1' as any,
+        clientNote: 'I will gather these documents this week.'
+      }
+    ];
+  }, [workspaceLoanTypes, workspaceTaskTemplates]);
+
+  const sampleLoanFiles = React.useMemo(() => {
+    if (workspaceLoanTypes.length === 0) {
+      return [{
+        _id: 'sample-loan-file-1' as any,
+        status: 'in_progress' as const,
+        currentStage: 'Document Collection',
+        createdAt: Date.now() - (7 * 24 * 60 * 60 * 1000),
+        updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
+        loanTypeId: 'sample-loan-type-1' as any,
+      }];
+    }
+
+    // Create sample loan file based on real loan type
+    const sampleLoanType = workspaceLoanTypes[0];
+    return [{
       _id: 'sample-loan-file-1' as any,
       status: 'in_progress' as const,
-      currentStage: 'Document Collection',
-      createdAt: Date.now() - (7 * 24 * 60 * 60 * 1000), // 7 days ago
-      updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000), // 1 day ago
-      loanTypeId: 'sample-loan-type-1' as any,
-    }
-  ];
-
-  const sampleDocuments = [
-    {
-      _id: 'sample-doc-1' as any,
-      fileName: 'Pay_Stub_January.pdf',
-      fileType: 'application/pdf',
-      fileSize: 245760,
-      status: 'approved' as const,
-      uploadedAt: Date.now() - (2 * 24 * 60 * 60 * 1000), // 2 days ago
-      createdAt: Date.now() - (2 * 24 * 60 * 60 * 1000),
-      updatedAt: Date.now() - (2 * 24 * 60 * 60 * 1000),
-      uploadedBy: 'sample-user-1' as any,
-      workspaceId: 'sample-workspace-1' as any,
-    },
-    {
-      _id: 'sample-doc-2' as any,
-      fileName: 'W2_Form_2023.pdf',
-      fileType: 'application/pdf',
-      fileSize: 189440,
-      status: 'pending_review' as const,
-      uploadedAt: Date.now() - (1 * 24 * 60 * 60 * 1000), // 1 day ago
-      createdAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
+      currentStage: sampleLoanType.stages[1] || 'Document Collection',
+      createdAt: Date.now() - (7 * 24 * 60 * 60 * 1000),
       updatedAt: Date.now() - (1 * 24 * 60 * 60 * 1000),
+      loanTypeId: sampleLoanType._id,
+    }];
+  }, [workspaceLoanTypes]);
+
+  const sampleDocuments = React.useMemo(() => {
+    // Create sample documents that would be relevant to the loan type
+    const documentTypes = workspaceLoanTypes.length > 0 ? 
+      ['Income Verification', 'Credit Authorization', 'Asset Documentation'] : 
+      ['Pay Stub', 'W2 Form', 'Bank Statement'];
+
+    return documentTypes.map((type, index) => ({
+      _id: `sample-doc-${index + 1}` as any,
+      fileName: `${type.replace(' ', '_')}_${new Date().getFullYear()}.pdf`,
+      fileType: 'application/pdf',
+      fileSize: 200000 + (index * 50000), // Varying file sizes
+      status: index === 0 ? 'approved' as const : 'pending_review' as const,
+      uploadedAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
+      createdAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
+      updatedAt: Date.now() - ((index + 1) * 24 * 60 * 60 * 1000),
       uploadedBy: 'sample-user-1' as any,
       workspaceId: 'sample-workspace-1' as any,
-    }
-  ];
+    }));
+  }, [workspaceLoanTypes]);
 
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
@@ -436,6 +472,43 @@ const ClientPortal: React.FC = () => {
                     : 'Here you can track your loan progress, access important documents, and stay updated on your application.'
                   }
                 </p>
+                
+                {/* Loan Type Information */}
+                {displayLoanFiles.length > 0 && (
+                  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h3 className="font-semibold text-blue-800 mb-2">Current Loan Application</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-blue-600">Loan Type:</p>
+                        <p className="font-medium text-blue-800">
+                          {isPreviewMode && workspaceLoanTypes.length > 0 
+                            ? workspaceLoanTypes[0].name 
+                            : 'Residential Mortgage'
+                          }
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-600">Current Stage:</p>
+                        <p className="font-medium text-blue-800">
+                          {displayLoanFiles[0]?.currentStage || 'Document Collection'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-600">Status:</p>
+                        <p className="font-medium text-blue-800 capitalize">
+                          {displayLoanFiles[0]?.status || 'In Progress'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-600">Tasks:</p>
+                        <p className="font-medium text-blue-800">
+                          {displayTasks.filter(t => t.status === 'completed').length} of {displayTasks.length} completed
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                   {canViewLoanFiles && (
                     <div className="text-center p-4 bg-brand-orange/10 rounded-lg">
