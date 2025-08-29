@@ -264,15 +264,15 @@ const Clients: React.FC = () => {
   // Use mock data for demo accounts and verified users, or real data for authenticated users
   const shouldUseMockData = isDemoAccount || isVerifiedUser;
   
-  const clientsQuery = useQuery(api.clients.listByWorkspace, shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any });
+  const clientsQuery = useQuery(api.clients.listByWorkspace, { workspaceId: (workspace?.id || "placeholder") as any });
   const clients = shouldUseMockData ? mockClients : (hasValidWorkspace && clientsQuery) ? clientsQuery : [];
 
-  const partnersQuery = useQuery(api.partners.listPartners, shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any });
+  const partnersQuery = useQuery(api.partners.listPartners, { workspaceId: (workspace?.id || "placeholder") as any });
   const partners = shouldUseMockData ? mockPartners : (hasValidWorkspace && partnersQuery) ? partnersQuery : [];
 
   const loanTypesQuery = useQuery(
     api.loanTypes.listByWorkspace,
-    shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any }
+    { workspaceId: (workspace?.id || "placeholder") as any }
   );
 
   // Use real data or demo data based on account type
@@ -335,13 +335,19 @@ const Clients: React.FC = () => {
   // Fetch client loan types for real accounts
   const clientLoanTypesQuery = useQuery(
     api.clientLoanTypes.listByWorkspace,
-    shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any }
+    { workspaceId: (workspace?.id || "placeholder") as any }
   );
 
   // Fetch client tasks for real accounts to calculate task counts
   const clientTasksQuery = useQuery(
     api.clientLoanTypes.listClientTasksByWorkspace,
-    shouldUseMockData ? "skip" : { workspaceId: workspace?.id || "" as any }
+    { workspaceId: (workspace?.id || "placeholder") as any }
+  );
+
+  // Fetch all unread message counts for clients
+  const allUnreadMessageCounts = useQuery(
+    api.messages.getAllUnreadMessageCountsForWorkspace,
+    { workspaceId: (workspace?.id || "placeholder") as any }
   );
 
   // Get client loan types (real or demo)
@@ -611,10 +617,10 @@ const Clients: React.FC = () => {
   // Get tasks for the selected loan type
   const tasksQuery = useQuery(
     api.clientLoanTypes.getTasksByClientLoanType,
-    selectedLoanTypeToEdit ? {
-      workspaceId: workspace?.id || "" as any,
-      clientLoanTypeId: selectedLoanTypeToEdit.clientLoanType._id as any, // Use the nested clientLoanType ID
-    } : "skip"
+    {
+      workspaceId: (workspace?.id || "placeholder") as any,
+      clientLoanTypeId: (selectedLoanTypeToEdit?.clientLoanType._id || "placeholder") as any,
+    }
   );
 
   // Handle tasks query error gracefully
@@ -1179,11 +1185,9 @@ const Clients: React.FC = () => {
             const clientLoanTypes = getClientLoanTypes(item._id);
             
             // Get unread message count for this client
-            const unreadMessageCount = useQuery(api.messages.getUnreadMessageCountBetweenUsers, {
-              workspaceId: workspace?.id || "" as any,
-              userId1: user?._id || "" as any,
-              userId2: item._id as any,
-            }) || 0;
+            const unreadMessageCount = allUnreadMessageCounts && typeof allUnreadMessageCounts === 'object' 
+              ? (allUnreadMessageCounts[item._id] || 0) 
+              : 0;
             
             return (
               <div key={item._id} className="bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-xl hover:shadow-2xl transition-all duration-300">

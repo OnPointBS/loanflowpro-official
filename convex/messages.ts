@@ -104,6 +104,29 @@ export const getUnreadMessageCountBetweenUsers = query({
   },
 });
 
+// Get all unread message counts for a workspace (for advisors to see client notifications)
+export const getAllUnreadMessageCountsForWorkspace = query({
+  args: {
+    workspaceId: v.id("workspaces"),
+  },
+  handler: async (ctx, args) => {
+    const unreadMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_workspace", (q) => q.eq("workspaceId", args.workspaceId))
+      .filter((q) => q.eq(q.field("readAt"), undefined))
+      .collect();
+
+    // Group by sender to get counts per client
+    const countsBySender: Record<string, number> = {};
+    unreadMessages.forEach(message => {
+      const senderId = message.senderId;
+      countsBySender[senderId] = (countsBySender[senderId] || 0) + 1;
+    });
+
+    return countsBySender;
+  },
+});
+
 // Mark all messages as read between two users
 export const markAllMessagesAsRead = mutation({
   args: {
