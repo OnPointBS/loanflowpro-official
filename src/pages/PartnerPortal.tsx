@@ -41,16 +41,20 @@ const PartnerPortal: React.FC = () => {
   // Get partner ID from URL if in preview mode
   const partnerIdFromUrl = searchParams.get('partnerId');
 
-  // Get partner permissions and data (only for partners)
-  const partnerPermissions = user?.role === 'PARTNER' ? useQuery(api.partners.getPartnerPermissions, {
+  // Check if user is a partner or if we're in preview mode
+  const isPartner = user?.role === 'PARTNER';
+  const isPreviewMode = !isPartner && currentMembership?.role === 'ADVISOR';
+
+  // Get partner permissions and data (only for actual partners, not preview mode)
+  const partnerPermissions = isPartner && !isPreviewMode ? useQuery(api.partners.getPartnerPermissions, {
     workspaceId: workspace?.id || '',
     userId: user?._id || '',
   }) : null;
 
   // Get specific partner information for preview mode
-  const specificPartner = useQuery(api.partners.getPartner, {
+  const specificPartner = partnerIdFromUrl ? useQuery(api.partners.getPartner, {
     partnerId: partnerIdFromUrl as any,
-  });
+  }) : null;
 
   // Get partner's accessible loan files (if they have permission)
   const loanFiles = useQuery(api.loanFiles.listByWorkspace, {
@@ -72,11 +76,11 @@ const PartnerPortal: React.FC = () => {
     workspaceId: workspace?.id || '',
   }) || [];
 
-  // Get partner information for preview mode
-  const partnerInfo = useQuery(api.partners.getPartnerByEmail, {
+  // Get partner information for preview mode (only if we have a partner ID)
+  const partnerInfo = partnerIdFromUrl ? useQuery(api.partners.getPartnerByEmail, {
     workspaceId: workspace?.id || '',
     email: user?.email || '',
-  });
+  }) : null;
 
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
@@ -93,10 +97,7 @@ const PartnerPortal: React.FC = () => {
     );
   }
 
-  // Check if user is a partner or if we're in preview mode
-  const isPartner = partnerPermissions?.role === 'PARTNER';
-  const isPreviewMode = !isPartner && currentMembership?.role === 'ADVISOR';
-
+  // Check access permissions
   if (!isPartner && !isPreviewMode) {
     return (
       <div className="min-h-screen flex items-center justify-center">

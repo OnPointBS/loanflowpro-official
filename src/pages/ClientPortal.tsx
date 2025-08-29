@@ -38,16 +38,20 @@ const ClientPortal: React.FC = () => {
   // Get client ID from URL if in preview mode
   const clientIdFromUrl = searchParams.get('clientId');
 
-  // Get client permissions and data (only for clients)
-  const clientPermissions = user?.role === 'CLIENT' ? useQuery(api.clientInvites.getClientPermissions, {
+  // Check if user is a client or if we're in preview mode
+  const isClient = user?.role === 'CLIENT';
+  const isPreviewMode = !isClient && currentMembership?.role === 'ADVISOR';
+
+  // Get client permissions and data (only for actual clients, not preview mode)
+  const clientPermissions = isClient && !isPreviewMode ? useQuery(api.clientInvites.getClientPermissions, {
     workspaceId: workspace?.id || '',
     userId: user?._id || '',
   }) : null;
 
   // Get specific client information for preview mode
-  const specificClient = useQuery(api.clients.getClient, {
+  const specificClient = clientIdFromUrl ? useQuery(api.clients.getClient, {
     clientId: clientIdFromUrl as any,
-  });
+  }) : null;
 
   // Get client's loan files (if they have permission)
   const loanFiles = useQuery(api.loanFiles.listByClient, {
@@ -67,11 +71,11 @@ const ClientPortal: React.FC = () => {
     clientId: user?._id || '',
   }) || [];
 
-  // Get client information for preview mode
-  const clientInfo = useQuery(api.clients.getClientByEmail, {
+  // Get client information for preview mode (only if we have a client ID)
+  const clientInfo = clientIdFromUrl ? useQuery(api.clients.getClientByEmail, {
     workspaceId: workspace?.id || '',
     email: user?.email || '',
-  });
+  }) : null;
 
   // Mutations
   const sendMessage = useMutation(api.messages.sendMessage);
@@ -88,10 +92,6 @@ const ClientPortal: React.FC = () => {
       </div>
     );
   }
-
-  // Check if user is a client or if we're in preview mode
-  const isClient = clientPermissions?.role === 'CLIENT';
-  const isPreviewMode = !isClient && currentMembership?.role === 'ADVISOR';
 
   if (!isClient && !isPreviewMode) {
     return (
