@@ -60,11 +60,6 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     console.log('🔍 [DEBUG] - localStorage verifiedUser:', localStorage.getItem('verifiedUser'));
     console.log('🔍 [DEBUG] - localStorage demoUser:', localStorage.getItem('demoUser'));
 
-    // Don't proceed if we're already loading
-    if (isLoading) {
-      return;
-    }
-
     setIsLoading(true);
 
     // Priority 1: Check for verified user in localStorage first (highest priority)
@@ -166,7 +161,7 @@ export const WorkspaceProvider: React.FC<WorkspaceProviderProps> = ({ children }
     setCurrentWorkspace(null);
     setCurrentMembership(null);
     setIsLoading(false);
-  }, [user, workspace]); // Keep these dependencies but prioritize localStorage
+  }, [user, workspace, isLoading]); // Include isLoading to prevent infinite loops
 
   // Simple function to check if user might have multiple roles
   const checkForMultipleRoles = async (email: string) => {
