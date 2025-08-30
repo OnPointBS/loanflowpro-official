@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useAuth } from '../auth/AuthProvider';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
 interface TeamMember {
   _id: string;
@@ -25,6 +27,30 @@ const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Convex mutations and queries
+  const updateWorkspaceSettings = useMutation(api.workspaceSettings.updateWorkspaceSettings);
+  const updateUserProfile = useMutation(api.userProfile.updateUserProfile);
+  const changeUserPassword = useMutation(api.userProfile.changeUserPassword);
+  const inviteMember = useMutation(api.workspaceMembers.inviteMember);
+  const updateMemberRole = useMutation(api.workspaceMembers.updateMemberRole);
+  const removeMember = useMutation(api.workspaceMembers.removeMember);
+  const toggleWorkspaceIntegration = useMutation(api.workspaceSettings.toggleWorkspaceIntegration);
+
+  // Get workspace settings
+  const workspaceSettings = useQuery(api.workspaceSettings.getWorkspaceSettings, 
+    workspace?.id ? { workspaceId: workspace.id as any } : "skip"
+  );
+
+  // Get team members
+  const teamMembers = useQuery(api.workspaceMembers.getByWorkspace,
+    workspace?.id ? { workspaceId: workspace.id as any } : "skip"
+  );
+
+  // Get workspace integrations
+  const integrations = useQuery(api.workspaceSettings.getWorkspaceIntegrations,
+    workspace?.id ? { workspaceId: workspace.id as any } : "skip"
+  );
 
   // Form states
   const [generalForm, setGeneralForm] = useState({
@@ -56,46 +82,30 @@ const Settings: React.FC = () => {
     message: ''
   });
 
-  // Mock data for demonstration
-  const [teamMembers] = useState<TeamMember[]>([
-    {
-      _id: '1',
-      name: user?.name || 'Demo User',
-      email: user?.email || 'demo@loanflowpro.com',
-      role: 'ADVISOR',
-      status: 'active',
-      joinedAt: Date.now() - 30 * 24 * 60 * 60 * 1000
-    }
-  ]);
+  // Transform Convex data to match our interfaces
+  const transformedTeamMembers: TeamMember[] = teamMembers?.map(member => ({
+    _id: member._id,
+    name: member.user?.name || 'Unknown User',
+    email: member.user?.email || 'unknown@email.com',
+    role: member.role,
+    status: member.status,
+    joinedAt: member.createdAt,
+  })) || [];
 
-  const [integrations] = useState<Integration[]>([
-    {
-      id: 'google-vision',
-      name: 'Google Cloud Vision API',
-      description: 'OCR processing for documents',
-      status: 'connected',
-      config: { apiKey: '***', region: 'us-central1' }
-    },
-    {
-      id: 'stripe',
-      name: 'Stripe',
-      description: 'Payment processing and billing',
-      status: 'connected',
-      config: { publishableKey: 'pk_***', webhookSecret: '***' }
-    },
-    {
-      id: 'resend',
-      name: 'Resend',
-      description: 'Transactional email service',
-      status: 'connected',
-      config: { apiKey: 're_***', domain: 'loanflowpro.com' }
-    }
-  ]);
+  const transformedIntegrations: Integration[] = integrations || [];
 
   // Update forms when workspace/user data changes
   useEffect(() => {
-    if (workspace) {
-      setGeneralForm(prev => ({ ...prev, workspaceName: workspace.name }));
+    if (workspaceSettings) {
+      setGeneralForm(prev => ({ 
+        ...prev, 
+        workspaceName: workspaceSettings.name || '',
+        timezone: workspaceSettings.timezone || 'America/New_York',
+        dateFormat: workspaceSettings.dateFormat || 'MM/DD/YYYY',
+        timeFormat: workspaceSettings.timeFormat || '12',
+        currency: workspaceSettings.currency || 'USD',
+        language: workspaceSettings.language || 'en'
+      }));
     }
     if (user) {
       setProfileForm(prev => ({ 
@@ -104,7 +114,7 @@ const Settings: React.FC = () => {
         email: user.email || '' 
       }));
     }
-  }, [workspace, user]);
+  }, [workspaceSettings, user]);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -113,12 +123,27 @@ const Settings: React.FC = () => {
 
   // General Settings
   const handleGeneralSave = async () => {
+    if (!workspace?.id) {
+      showMessage('error', 'No workspace selected');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Implement API call to update workspace settings
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await updateWorkspaceSettings({
+        workspaceId: workspace.id as any,
+        updates: {
+          name: generalForm.workspaceName,
+          timezone: generalForm.timezone,
+          dateFormat: generalForm.dateFormat,
+          timeFormat: generalForm.timeFormat,
+          currency: generalForm.currency,
+          language: generalForm.language,
+        },
+      });
       showMessage('success', 'General settings saved successfully!');
     } catch (error) {
+      console.error('Error saving general settings:', error);
       showMessage('error', 'Failed to save general settings');
     } finally {
       setIsLoading(false);
@@ -127,12 +152,25 @@ const Settings: React.FC = () => {
 
   // Profile Settings
   const handleProfileSave = async () => {
+    if (!user?._id) {
+      showMessage('error', 'No user found');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Implement API call to update profile
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await updateUserProfile({
+        userId: user._id as any,
+        updates: {
+          name: profileForm.name,
+          phone: profileForm.phone,
+          title: profileForm.title,
+          bio: profileForm.bio,
+        },
+      });
       showMessage('success', 'Profile updated successfully!');
     } catch (error) {
+      console.error('Error updating profile:', error);
       showMessage('error', 'Failed to update profile');
     } finally {
       setIsLoading(false);
@@ -150,13 +188,22 @@ const Settings: React.FC = () => {
       return;
     }
 
+    if (!user?._id) {
+      showMessage('error', 'No user found');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Implement API call to change password
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await changeUserPassword({
+        userId: user._id as any,
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       showMessage('success', 'Password changed successfully!');
     } catch (error) {
+      console.error('Error changing password:', error);
       showMessage('error', 'Failed to change password');
     } finally {
       setIsLoading(false);
@@ -170,13 +217,23 @@ const Settings: React.FC = () => {
       return;
     }
 
+    if (!workspace?.id) {
+      showMessage('error', 'No workspace selected');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Implement API call to invite member
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await inviteMember({
+        workspaceId: workspace.id as any,
+        email: inviteForm.email.trim(),
+        role: inviteForm.role,
+        message: inviteForm.message,
+      });
       setInviteForm({ email: '', role: 'STAFF', message: '' });
       showMessage('success', 'Invitation sent successfully!');
     } catch (error) {
+      console.error('Error inviting member:', error);
       showMessage('error', 'Failed to send invitation');
     } finally {
       setIsLoading(false);
@@ -188,10 +245,10 @@ const Settings: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // TODO: Implement API call to remove member
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await removeMember({ membershipId: memberId as any });
       showMessage('success', 'Team member removed successfully!');
     } catch (error) {
+      console.error('Error removing member:', error);
       showMessage('error', 'Failed to remove team member');
     } finally {
       setIsLoading(false);
@@ -201,10 +258,10 @@ const Settings: React.FC = () => {
   const handleRoleChange = async (memberId: string, newRole: 'ADVISOR' | 'STAFF' | 'CLIENT') => {
     setIsLoading(true);
     try {
-      // TODO: Implement API call to change role
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await updateMemberRole({ membershipId: memberId as any, newRole });
       showMessage('success', 'Role updated successfully!');
     } catch (error) {
+      console.error('Error updating role:', error);
       showMessage('error', 'Failed to update role');
     } finally {
       setIsLoading(false);
@@ -213,12 +270,21 @@ const Settings: React.FC = () => {
 
   // Integration Management
   const handleIntegrationToggle = async (integrationId: string, enabled: boolean) => {
+    if (!workspace?.id) {
+      showMessage('error', 'No workspace selected');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Implement API call to toggle integration
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      await toggleWorkspaceIntegration({
+        workspaceId: workspace.id as any,
+        integrationId,
+        enabled,
+      });
       showMessage('success', `Integration ${enabled ? 'enabled' : 'disabled'} successfully!`);
     } catch (error) {
+      console.error('Error toggling integration:', error);
       showMessage('error', 'Failed to update integration');
     } finally {
       setIsLoading(false);
@@ -461,7 +527,7 @@ const Settings: React.FC = () => {
             {/* Current Team Members */}
             <div className="space-y-4">
               <h4 className="text-md font-medium text-gray-700">Current Team Members</h4>
-              {teamMembers.map((member) => (
+                                  {transformedTeamMembers.map((member) => (
                 <div key={member._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                   <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
@@ -660,7 +726,7 @@ const Settings: React.FC = () => {
             <h3 className="text-lg font-medium text-gray-900">Integrations</h3>
             
             <div className="space-y-4">
-              {integrations.map((integration) => (
+                                  {transformedIntegrations.map((integration) => (
                 <div key={integration.id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
