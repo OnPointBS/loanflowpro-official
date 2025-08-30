@@ -176,7 +176,7 @@ export const listByTask = query({
 export const updateStatus = mutation({
   args: {
     documentId: v.id("documents"),
-    status: v.union(v.literal("uploading"), v.literal("processing"), v.literal("ready"), v.literal("error")),
+    status: v.union(v.literal("uploading"), v.literal("processing"), v.literal("ready"), v.literal("error"), v.literal("pending_review"), v.literal("approved"), v.literal("rejected")),
   },
   handler: async (ctx, { documentId, status }) => {
     const document = await ctx.db.get(documentId);
@@ -186,6 +186,33 @@ export const updateStatus = mutation({
 
     await ctx.db.patch(documentId, {
       status,
+      updatedAt: Date.now(),
+    });
+
+    return documentId;
+  },
+});
+
+// Update document with additional fields
+export const updateDocument = mutation({
+  args: {
+    documentId: v.id("documents"),
+    updates: v.object({
+      status: v.optional(v.union(v.literal("uploading"), v.literal("processing"), v.literal("ready"), v.literal("error"), v.literal("pending_review"), v.literal("approved"), v.literal("rejected"))),
+      ocrText: v.optional(v.string()),
+      ocrConfidence: v.optional(v.number()),
+      pageCount: v.optional(v.number()),
+      notes: v.optional(v.string()),
+    }),
+  },
+  handler: async (ctx, { documentId, updates }) => {
+    const document = await ctx.db.get(documentId);
+    if (!document) {
+      throw new Error("Document not found");
+    }
+
+    await ctx.db.patch(documentId, {
+      ...updates,
       updatedAt: Date.now(),
     });
 
