@@ -107,13 +107,13 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
               </h3>
               <div className="flex items-center space-x-4 text-sm text-gunmetal-light">
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-brand-orange to-orange-500 rounded-full shadow-sm"></div>
                   <span className="font-medium">
                     {isClientPortal ? 'Advisor' : 'You'} • {user?.name || 'Advisor'}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm"></div>
+                  <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-sm"></div>
                   <span className="font-medium">
                     {isClientPortal ? 'You' : 'Client'} • {isClientPortal ? 'Client' : clientName}
                   </span>
@@ -162,7 +162,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
                     {/* Sender Info - Only show for received messages */}
                     {!isOwnMessage && (
                       <div className="flex items-center space-x-2 mb-2">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"></div>
                         <span className="text-xs font-medium text-gunmetal-light">
                           {senderName} • {senderRole}
                         </span>
@@ -173,8 +173,8 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
                     <div
                       className={`px-4 py-3 rounded-2xl shadow-sm max-w-[280px] ${
                         isOwnMessage
-                          ? 'bg-brand-orange text-white rounded-br-md ml-auto'
-                          : 'bg-gray-100 text-gunmetal rounded-bl-md mr-auto'
+                          ? 'bg-gradient-to-r from-brand-orange to-orange-500 text-white rounded-br-md ml-auto shadow-lg'
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-bl-md mr-auto shadow-lg'
                       }`}
                     >
                       <p className="text-sm leading-relaxed break-words">{msg.content}</p>
@@ -182,7 +182,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
                     
                     {/* Timestamp */}
                     <div className={`mt-2 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                      <p className={`text-xs ${isOwnMessage ? 'text-brand-orange/70' : 'text-gray-400'}`}>
+                      <p className={`text-xs ${isOwnMessage ? 'text-orange-200' : 'text-blue-200'}`}>
                         {formatTime(msg.createdAt)}
                       </p>
                     </div>
