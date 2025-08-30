@@ -96,23 +96,37 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-brand-orange/5 to-brand-orange/10">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-brand-orange rounded-full flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-white" />
+            <div className="w-12 h-12 bg-brand-orange rounded-full flex items-center justify-center shadow-lg">
+              <MessageSquare className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="font-semibold text-gunmetal">
+              <h3 className="font-bold text-gunmetal text-lg">
                 {isClientPortal ? `Chat with Advisor` : `Chat with ${clientName}`}
               </h3>
-              <p className="text-sm text-gunmetal-light">
+              <div className="flex items-center space-x-4 text-sm text-gunmetal-light">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="font-medium">
+                    {isClientPortal ? 'Advisor' : 'You'} • {user?.name || 'Advisor'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="font-medium">
+                    {isClientPortal ? 'You' : 'Client'} • {isClientPortal ? 'Client' : clientName}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-gunmetal-light mt-1">
                 {unreadCount > 0 ? `${unreadCount} unread message${unreadCount > 1 ? 's' : ''}` : 'All messages read'}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+            className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-2 hover:bg-gray-100 rounded-full"
           >
             <X className="w-6 h-6" />
           </button>
@@ -121,40 +135,55 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96">
           {messages.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">No messages yet</p>
-              <p className="text-sm text-gray-400">Start the conversation!</p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gradient-to-br from-brand-orange/20 to-brand-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="w-8 h-8 text-brand-orange" />
+              </div>
+              <h4 className="text-lg font-semibold text-gunmetal mb-2">Start the Conversation</h4>
+              <p className="text-gunmetal-light mb-1">No messages yet between you and {clientName}</p>
+              <p className="text-sm text-gray-400">Send the first message to begin chatting!</p>
             </div>
           ) : (
             messages.map((msg) => {
               const isOwnMessage = msg.senderType === 'advisor';
+              const senderName = isOwnMessage 
+                ? (user?.name || 'Advisor') 
+                : (isClientPortal ? 'Advisor' : clientName);
+              const senderRole = isOwnMessage 
+                ? (isClientPortal ? 'Client' : 'Advisor') 
+                : (isClientPortal ? 'Advisor' : 'Client');
+              
               return (
                 <div
                   key={msg._id}
-                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
                 >
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                      isOwnMessage
-                        ? 'bg-brand-orange text-white rounded-br-md'
-                        : 'bg-gray-100 text-gunmetal rounded-bl-md'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2 mb-1">
-                      {isOwnMessage ? (
-                        <User className="w-4 h-4" />
-                      ) : (
-                        <Bot className="w-4 h-4" />
-                      )}
-                      <span className="text-xs opacity-75">
-                        {isOwnMessage ? 'You' : (isClientPortal ? 'Advisor' : clientName)}
+                  <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-xs lg:max-w-md`}>
+                    {/* Sender Info */}
+                    <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`w-2 h-2 rounded-full ${isOwnMessage ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                      <span className="text-xs font-medium text-gunmetal-light">
+                        {senderName} • {senderRole}
                       </span>
                     </div>
-                    <p className="text-sm">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${isOwnMessage ? 'text-orange-100' : 'text-gray-500'}`}>
-                      {formatTime(msg.createdAt)}
-                    </p>
+                    
+                    {/* Message Bubble */}
+                    <div
+                      className={`px-4 py-3 rounded-2xl shadow-sm ${
+                        isOwnMessage
+                          ? 'bg-brand-orange text-white rounded-br-md'
+                          : 'bg-gray-100 text-gunmetal rounded-bl-md border border-gray-200'
+                      }`}
+                    >
+                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                    </div>
+                    
+                    {/* Timestamp */}
+                    <div className={`mt-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                      <p className={`text-xs ${isOwnMessage ? 'text-brand-orange/70' : 'text-gray-400'}`}>
+                        {formatTime(msg.createdAt)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               );
@@ -164,28 +193,38 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
         </div>
 
         {/* Message Input */}
-        <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent"
-              disabled={isSending}
-            />
+        <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-gray-50/50">
+          <div className="flex space-x-3">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={`Type your message to ${clientName}...`}
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent bg-white shadow-sm"
+                disabled={isSending}
+              />
+              {message.trim() && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="w-2 h-2 bg-brand-orange rounded-full"></div>
+                </div>
+              )}
+            </div>
             <button
               type="submit"
               disabled={!message.trim() || isSending}
-              className="px-4 py-2 bg-brand-orange text-white rounded-lg hover:bg-brand-orange-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+              className="px-6 py-3 bg-brand-orange text-white rounded-xl hover:bg-brand-orange-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center min-w-[60px]"
             >
               {isSending ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               )}
             </button>
           </div>
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            Messages are sent in real-time and stored securely
+          </p>
         </form>
       </div>
     </div>
