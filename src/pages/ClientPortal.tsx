@@ -315,18 +315,6 @@ const ClientPortal: React.FC = () => {
                   <p className="text-sm text-gunmetal-light">Your Advisor</p>
                   <p className="font-medium text-gunmetal">{primaryAdvisor.user?.name || 'Advisor'}</p>
                   <p className="text-sm text-brand-orange">{primaryAdvisor.user?.email || ''}</p>
-                  <button
-                    onClick={openChat}
-                    className="mt-2 bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark transition-colors duration-200 text-sm font-medium flex items-center space-x-2 relative"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Chat with Advisor</span>
-                    {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </span>
-                    )}
-                  </button>
                 </div>
               )}
             </div>
@@ -712,6 +700,24 @@ const ClientPortal: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {/* Floating Chat Button */}
+      {primaryAdvisor && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={openChat}
+            className="group relative bg-gradient-to-r from-brand-orange to-orange-500 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105"
+            title="Chat with your advisor"
+          >
+            <MessageSquare className="w-6 h-6" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold shadow-lg">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Chat Component */}
       {isChatOpen && primaryAdvisor && (
