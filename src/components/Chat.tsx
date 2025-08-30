@@ -222,7 +222,7 @@ const Chat: React.FC<ChatProps> = ({
           
           {/* Typing Indicator */}
           {isTyping && (
-            <div className="flex justify-start mb-4">
+            <div className="flex justify-start mb-4 p-4 bg-red-200 border-2 border-red-500">
               <div className="flex flex-col items-start max-w-xs lg:max-w-md">
                 <div className="flex items-center space-x-2 mb-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
