@@ -202,7 +202,7 @@ const ClientPortal: React.FC = () => {
         await uploadDocument({
           workspaceId: workspace?.id || '',
           clientId: clientIdFromUrl as any,
-          taskId: taskId as any,
+          clientTaskId: taskId as any,
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,

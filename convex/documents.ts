@@ -297,7 +297,8 @@ export const uploadDocument = mutation({
     workspaceId: v.id("workspaces"),
     loanFileId: v.optional(v.id("loanFiles")),
     clientId: v.optional(v.id("clients")),
-    taskId: v.optional(v.id("tasks")),
+    taskId: v.optional(v.id("tasks")), // For loan file tasks
+    clientTaskId: v.optional(v.id("clientTasks")), // For client portal tasks
     fileName: v.string(),
     fileType: v.string(),
     fileSize: v.number(),
@@ -312,6 +313,7 @@ export const uploadDocument = mutation({
       loanFileId: args.loanFileId,
       clientId: args.clientId,
       taskId: args.taskId,
+      clientTaskId: args.clientTaskId,
       fileName: args.fileName,
       fileType: args.fileType,
       fileSize: args.fileSize,
