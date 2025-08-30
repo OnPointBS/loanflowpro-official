@@ -115,12 +115,20 @@ const VerifyEmail = () => {
           if (inviteType === 'client' && inviteId) {
             // Accept client invitation
             try {
-              await convex.mutation(api.clientInvites.acceptInvite, { 
+              const inviteResult = await convex.mutation(api.clientInvites.acceptInvite, { 
                 inviteId: inviteId as any, 
                 userId: result.user._id 
               });
               console.log('Client invitation accepted successfully');
-              navigate('/client', { replace: true }); // Redirect to client portal
+              
+              // Get the client ID from the invite result
+              if (inviteResult && inviteResult.clientId) {
+                // Redirect to client portal with the specific client ID
+                navigate(`/client?clientId=${inviteResult.clientId}`, { replace: true });
+              } else {
+                // Fallback to client portal without specific client ID
+                navigate('/client', { replace: true });
+              }
             } catch (inviteError) {
               console.error('Failed to accept client invitation:', inviteError);
               // Still navigate to dashboard if invitation acceptance fails

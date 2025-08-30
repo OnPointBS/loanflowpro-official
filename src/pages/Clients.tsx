@@ -466,6 +466,10 @@ const Clients: React.FC = () => {
   const removeLoanType = useMutation(api.clientLoanTypes.removeLoanTypeFromClient);
   const updateClientTaskStatus = useMutation(api.clientLoanTypes.updateClientTaskStatus);
   const updateClientLoanTypeAssignment = useMutation(api.clientLoanTypes.updateClientLoanTypeAssignment);
+  
+  // Invite mutations
+  const createClientInvite = useMutation(api.clientInvites.createInvite);
+  const createPartnerInvite = useMutation(api.partners.createPartnerInvite);
 
   // Delete mutations
   const deleteClientMutation = useMutation(api.clients.remove);
@@ -503,26 +507,38 @@ const Clients: React.FC = () => {
 
     try {
       if (combinedModalType === 'inviteClient') {
-        // This is a simplified version - in the real implementation, you'd use the proper client invite API
-        // For now, we'll add them as a client with invited status
-        await createClient({
-          workspaceId: workspace.id as Id<"workspaces">,
-          name: inviteForm.name,
-          email: inviteForm.email,
-          phone: inviteForm.phone || '',
-          notes: `Invited via portal - Company: ${inviteForm.company || 'N/A'}, Role: ${inviteForm.role || 'N/A'}`,
+        // Use the proper client invite API
+        await createClientInvite({
+          workspaceId: workspace.id as any,
+          clientEmail: inviteForm.email,
+          clientName: inviteForm.name,
+          invitedBy: user._id as any,
+          permissions: inviteForm.permissions.length > 0 ? inviteForm.permissions : ['view_loan_progress', 'view_client_status'],
         });
 
         // Reset form and close modal
         setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
         setIsAddModalOpen(false);
         
-        alert('Client invited successfully! In a full implementation, an email invitation would be sent.');
+        alert('Client invitation sent successfully! They will receive an email to accept the invitation.');
       } else if (combinedModalType === 'invitePartner') {
-        // This is a simplified version - in the real implementation, you'd use the proper partner invite API
-        // For now, we'll add them as a partner with invited status
-        // Note: This would need to be updated to use the actual partner creation API
-        alert('Partner invitation functionality would be implemented here. In the real system, this would create a partner invite record and send an email invitation.');
+        // Use the proper partner invite API
+        await createPartnerInvite({
+          workspaceId: workspace.id as any,
+          partnerEmail: inviteForm.email,
+          partnerName: inviteForm.name,
+          partnerRole: inviteForm.role || 'Partner',
+          company: inviteForm.company || '',
+          phone: inviteForm.phone || '',
+          invitedBy: user._id as any,
+          permissions: inviteForm.permissions.length > 0 ? inviteForm.permissions : ['view_loan_progress', 'view_client_status'],
+        });
+
+        // Reset form and close modal
+        setInviteForm({ name: '', email: '', company: '', phone: '', role: '', permissions: [] });
+        setIsAddModalOpen(false);
+        
+        alert('Partner invitation sent successfully! They will receive an email to accept the invitation.');
       }
     } catch (error) {
       console.error('Error sending invitation:', error);

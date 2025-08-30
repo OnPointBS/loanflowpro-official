@@ -237,7 +237,7 @@ export const acceptInvite = mutation({
       createdAt: Date.now(),
     });
 
-    return { membershipId };
+    return { membershipId, clientId: invite.clientId };
   },
 });
 
