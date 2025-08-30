@@ -27,6 +27,11 @@ const Chat: React.FC<ChatProps> = ({
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  
+  // Debug: Log typing state changes
+  useEffect(() => {
+    console.log('Typing state changed:', isTyping);
+  }, [isTyping]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get real-time chat messages for this client
@@ -252,8 +257,8 @@ const Chat: React.FC<ChatProps> = ({
                   // Show typing indicator when user starts typing
                   if (e.target.value.trim()) {
                     setIsTyping(true);
-                    // Hide typing indicator after 2 seconds of no typing
-                    setTimeout(() => setIsTyping(false), 2000);
+                    // Hide typing indicator after 5 seconds of no typing (increased for testing)
+                    setTimeout(() => setIsTyping(false), 5000);
                   } else {
                     setIsTyping(false);
                   }
