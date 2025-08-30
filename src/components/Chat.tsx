@@ -94,7 +94,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-brand-orange/5 to-brand-orange/10">
           <div className="flex items-center space-x-3">
@@ -107,13 +107,13 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
               </h3>
               <div className="flex items-center space-x-4 text-sm text-gunmetal-light">
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
                   <span className="font-medium">
                     {isClientPortal ? 'Advisor' : 'You'} • {user?.name || 'Advisor'}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-blue-500 rounded-full shadow-sm"></div>
                   <span className="font-medium">
                     {isClientPortal ? 'You' : 'Client'} • {isClientPortal ? 'Client' : clientName}
                   </span>
@@ -133,7 +133,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96 bg-gray-50/30">
           {messages.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gradient-to-br from-brand-orange/20 to-brand-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -159,27 +159,29 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
                   className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
                 >
                   <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-xs lg:max-w-md`}>
-                    {/* Sender Info */}
-                    <div className={`flex items-center space-x-2 mb-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`w-2 h-2 rounded-full ${isOwnMessage ? 'bg-green-500' : 'bg-blue-500'}`}></div>
-                      <span className="text-xs font-medium text-gunmetal-light">
-                        {senderName} • {senderRole}
-                      </span>
-                    </div>
+                    {/* Sender Info - Only show for received messages */}
+                    {!isOwnMessage && (
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-xs font-medium text-gunmetal-light">
+                          {senderName} • {senderRole}
+                        </span>
+                      </div>
+                    )}
                     
                     {/* Message Bubble */}
                     <div
-                      className={`px-4 py-3 rounded-2xl shadow-sm ${
+                      className={`px-4 py-3 rounded-2xl shadow-sm max-w-[280px] ${
                         isOwnMessage
-                          ? 'bg-brand-orange text-white rounded-br-md'
-                          : 'bg-gray-100 text-gunmetal rounded-bl-md border border-gray-200'
+                          ? 'bg-brand-orange text-white rounded-br-md ml-auto'
+                          : 'bg-gray-100 text-gunmetal rounded-bl-md mr-auto'
                       }`}
                     >
-                      <p className="text-sm leading-relaxed">{msg.content}</p>
+                      <p className="text-sm leading-relaxed break-words">{msg.content}</p>
                     </div>
                     
                     {/* Timestamp */}
-                    <div className={`mt-1 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                    <div className={`mt-2 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                       <p className={`text-xs ${isOwnMessage ? 'text-brand-orange/70' : 'text-gray-400'}`}>
                         {formatTime(msg.createdAt)}
                       </p>
