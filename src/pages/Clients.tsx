@@ -352,7 +352,7 @@ const Clients: React.FC = () => {
 
   // Fetch all unread message counts for clients
   const allUnreadMessageCounts = useQuery(
-    api.messages.getAllUnreadMessageCountsForWorkspace,
+    api.clientChats.getUnreadCountsForWorkspace,
     workspace?.id ? { workspaceId: workspace.id as any } : "skip"
   );
 

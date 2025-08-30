@@ -270,6 +270,31 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_workspace", ["workspaceId"]).index("by_sender", ["senderId"]).index("by_recipient", ["recipientId"]),
 
+  // Client-advisor chat conversations
+  clientChats: defineTable({
+    workspaceId: v.id("workspaces"),
+    clientId: v.id("clients"),
+    advisorId: v.id("users"),
+    lastMessageAt: v.number(),
+    lastMessageContent: v.optional(v.string()),
+    unreadCount: v.number(), // Count of unread messages for the advisor
+    clientUnreadCount: v.number(), // Count of unread messages for the client
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]).index("by_client", ["clientId"]).index("by_advisor", ["advisorId"]).index("by_workspace_client", ["workspaceId", "clientId"]),
+
+  // Individual chat messages between client and advisor
+  clientChatMessages: defineTable({
+    workspaceId: v.id("workspaces"),
+    clientId: v.id("clients"),
+    senderType: v.union(v.literal("advisor"), v.literal("client")),
+    senderId: v.optional(v.id("users")), // Only set for advisor messages
+    content: v.string(),
+    readByAdvisor: v.boolean(),
+    readByClient: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_workspace", ["workspaceId"]).index("by_client", ["clientId"]).index("by_created_at", ["createdAt"]),
+
   // Subscription and billing
   subscriptions: defineTable({
     workspaceId: v.id("workspaces"),

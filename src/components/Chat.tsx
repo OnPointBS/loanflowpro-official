@@ -20,38 +20,45 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // For client chats, we need to handle this differently since clientId is not a user ID
-  // We'll create a simple client chat mode that doesn't rely on the user-to-user messaging system
-  const [localMessages, setLocalMessages] = useState<Array<{
-    id: string;
-    content: string;
-    timestamp: number;
-    sender: 'advisor' | 'client';
-  }>>([]);
+  // Get real-time chat messages for this client
+  const messages = useQuery(api.clientChats.getClientChatMessages, 
+    !isDemo && workspaceId && clientId ? {
+      workspaceId: workspaceId as any,
+      clientId: clientId as any,
+      limit: 100
+    } : "skip"
+  ) || [];
 
-  // In client chat mode, we don't use the existing messaging system
-  // Instead, we'll create a simple local chat experience
-  const messages = localMessages;
-  const unreadCount = 0; // No unread count for client chats
+  // Get unread message count for this client
+  const unreadCount = useQuery(api.clientChats.getUnreadCountForClient, 
+    !isDemo && workspaceId && clientId ? {
+      workspaceId: workspaceId as any,
+      clientId: clientId as any
+    } : "skip"
+  ) || 0;
 
-  // For client chats, we don't need these mutations
-  // const sendMessage = useMutation(api.messages.sendMessage);
-  // const markAsRead = useMutation(api.messages.markAllMessagesAsRead);
+  // Mutations for client chat
+  const sendAdvisorMessage = useMutation(api.clientChats.sendAdvisorMessage);
+  const markAsReadByAdvisor = useMutation(api.clientChats.markAsReadByAdvisor);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // For client chats, we don't need to mark messages as read
-  // since we're using a local messaging system
+  // Mark messages as read when chat is opened
   useEffect(() => {
-    // This effect is not needed for client chats
-  }, []);
+    if (!isDemo && isOpen && unreadCount > 0 && workspaceId && clientId) {
+      markAsReadByAdvisor({
+        workspaceId: workspaceId as any,
+        clientId: clientId as any,
+      });
+    }
+  }, [isDemo, isOpen, unreadCount, workspaceId, clientId, markAsReadByAdvisor]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || !user?._id) return;
 
     if (isDemo) {
       // In demo mode, just simulate sending a message
@@ -60,27 +67,20 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
       return;
     }
 
-    // For client chats, we'll add messages locally
-    const newMessage = {
-      id: Date.now().toString(),
-      content: message.trim(),
-      timestamp: Date.now(),
-      sender: 'advisor' as const,
-    };
-
-    setLocalMessages(prev => [...prev, newMessage]);
-    setMessage('');
-
-    // Simulate client response after a short delay
-    setTimeout(() => {
-      const clientResponse = {
-        id: (Date.now() + 1).toString(),
-        content: `Thanks for your message! This is a simulated response from ${clientName}.`,
-        timestamp: Date.now(),
-        sender: 'client' as const,
-      };
-      setLocalMessages(prev => [...prev, clientResponse]);
-    }, 1000);
+    setIsSending(true);
+    try {
+      await sendAdvisorMessage({
+        workspaceId: workspaceId as any,
+        clientId: clientId as any,
+        advisorId: user._id as any,
+        content: message.trim(),
+      });
+      setMessage('');
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const formatTime = (timestamp: number) => {
@@ -128,7 +128,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
             </div>
           ) : (
             messages.map((msg) => {
-              const isOwnMessage = msg.senderId === user?._id;
+              const isOwnMessage = msg.senderType === 'advisor';
               return (
                 <div
                   key={msg._id}

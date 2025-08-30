@@ -17,6 +17,7 @@ import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
 import type * as authMutations from "../authMutations.js";
 import type * as billing from "../billing.js";
+import type * as clientChats from "../clientChats.js";
 import type * as clientInvites from "../clientInvites.js";
 import type * as clientLoanTypes from "../clientLoanTypes.js";
 import type * as clients from "../clients.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authMutations: typeof authMutations;
   billing: typeof billing;
+  clientChats: typeof clientChats;
   clientInvites: typeof clientInvites;
   clientLoanTypes: typeof clientLoanTypes;
   clients: typeof clients;
