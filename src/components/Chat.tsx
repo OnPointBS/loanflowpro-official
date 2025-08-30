@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../auth/AuthProvider';
-import { MessageSquare, Send, X, User, Bot } from 'lucide-react';
+import { MessageSquare, Send, X } from 'lucide-react';
 
 interface ChatProps {
   workspaceId: string;
@@ -10,11 +10,19 @@ interface ChatProps {
   clientName: string;
   isOpen: boolean;
   onClose: () => void;
-  isClientPortal?: boolean; // To determine if this is from client portal
-  isDemo?: boolean; // To determine if this is demo mode
+  isClientPortal?: boolean;
+  isDemo?: boolean;
 }
 
-const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, onClose, isClientPortal = false, isDemo = false }) => {
+const Chat: React.FC<ChatProps> = ({ 
+  workspaceId, 
+  clientId, 
+  clientName, 
+  isOpen, 
+  onClose, 
+  isClientPortal = false, 
+  isDemo = false 
+}) => {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -52,13 +60,11 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
   useEffect(() => {
     if (!isDemo && isOpen && unreadCount > 0 && workspaceId && clientId) {
       if (isClientPortal) {
-        // Client portal: mark messages as read by client
         markAsReadByClient({
           workspaceId: workspaceId as any,
           clientId: clientId as any,
         });
       } else {
-        // Advisor portal: mark messages as read by advisor
         markAsReadByAdvisor({
           workspaceId: workspaceId as any,
           clientId: clientId as any,
@@ -72,7 +78,6 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
     if (!message.trim()) return;
 
     if (isDemo) {
-      // In demo mode, just simulate sending a message
       console.log('Demo mode: Message would be sent:', message.trim());
       setMessage('');
       return;
@@ -81,14 +86,12 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
     setIsSending(true);
     try {
       if (isClientPortal) {
-        // Client portal: send message as client
         await sendClientMessage({
           workspaceId: workspaceId as any,
           clientId: clientId as any,
           content: message.trim(),
         });
       } else {
-        // Advisor portal: send message as advisor
         if (!user?._id) return;
         await sendAdvisorMessage({
           workspaceId: workspaceId as any,
@@ -116,7 +119,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-brand-orange/5 to-brand-orange/10">
           <div className="flex items-center space-x-3">
@@ -155,7 +158,7 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
         </div>
 
         {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96 bg-gray-50/30">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96 bg-gray-50/30">
           {messages.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gradient-to-br from-brand-orange/20 to-brand-orange/10 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -181,7 +184,6 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
                   className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
                 >
                   <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-xs lg:max-w-md`}>
-                    {/* Sender Info - Only show for received messages */}
                     {!isOwnMessage && (
                       <div className="flex items-center space-x-2 mb-2">
                         <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"></div>
@@ -191,7 +193,6 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
                       </div>
                     )}
                     
-                    {/* Message Bubble */}
                     <div
                       className={`px-4 py-3 rounded-2xl shadow-sm max-w-[280px] ${
                         isOwnMessage
@@ -202,7 +203,6 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
                       <p className="text-sm leading-relaxed break-words">{msg.content}</p>
                     </div>
                     
-                    {/* Timestamp */}
                     <div className={`mt-2 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                       <p className={`text-xs ${isOwnMessage ? 'text-orange-200' : 'text-blue-200'}`}>
                         {formatTime(msg.createdAt)}
