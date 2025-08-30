@@ -60,32 +60,26 @@ const Documents: React.FC = () => {
     workspaceId: workspace?.id || '',
   }) || [];
 
-  // Get user information for uploadedBy
-  const users = useQuery(api.users.listByWorkspace, {
-    workspaceId: workspace?.id || '',
-  }) || [];
-
   // Mutations
   const updateDocumentStatus = useMutation(api.documents.updateStatus);
   const updateDocument = useMutation(api.documents.updateDocument);
 
   // Process documents with additional information
   const processedDocuments: Document[] = React.useMemo(() => {
-    if (!documents || !clients || !tasks || !users) return [];
+    if (!documents || !clients || !tasks) return [];
 
     return documents.map((doc: any) => {
       const client = clients.find((c: any) => c._id === doc.clientId);
       const task = tasks.find((t: any) => t._id === doc.taskId);
-      const uploader = users.find((u: any) => u._id === doc.uploadedBy);
 
       return {
         ...doc,
         clientName: client?.name || 'Unknown Client',
         taskName: task?.title || 'No Task',
-        uploadedBy: uploader?.name || 'Unknown User',
+        uploadedBy: doc.uploadedBy || 'Unknown User',
       };
     });
-  }, [documents, clients, tasks, users]);
+  }, [documents, clients, tasks]);
 
   // Filter documents
   const filteredDocuments = processedDocuments.filter(doc => {
