@@ -73,6 +73,14 @@ const ClientPortal: React.FC = () => {
     workspaceId: workspace?.id || '',
   });
 
+  // Get unread message count for this client
+  const unreadCount = useQuery(api.clientChats.getUnreadCountForClient, 
+    workspace?.id && clientIdFromUrl ? {
+      workspaceId: workspace.id as any,
+      clientId: clientIdFromUrl as any
+    } : "skip"
+  ) || 0;
+
   // Helper function to get documents for a specific task
   const getDocumentsForTask = (taskId: string) => {
     if (!allDocuments) return [];
@@ -297,10 +305,15 @@ const ClientPortal: React.FC = () => {
                   <p className="text-sm text-brand-orange">{primaryAdvisor.user?.email || ''}</p>
                   <button
                     onClick={openChat}
-                    className="mt-2 bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark transition-colors duration-200 text-sm font-medium flex items-center space-x-2"
+                    className="mt-2 bg-brand-orange text-white px-4 py-2 rounded-lg hover:bg-brand-orange-dark transition-colors duration-200 text-sm font-medium flex items-center space-x-2 relative"
                   >
                     <MessageSquare className="w-4 h-4" />
                     <span>Chat with Advisor</span>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                   </button>
                 </div>
               )}

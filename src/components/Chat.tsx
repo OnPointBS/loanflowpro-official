@@ -39,7 +39,9 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
   // Mutations for client chat
   const sendAdvisorMessage = useMutation(api.clientChats.sendAdvisorMessage);
+  const sendClientMessage = useMutation(api.clientChats.sendClientMessage);
   const markAsReadByAdvisor = useMutation(api.clientChats.markAsReadByAdvisor);
+  const markAsReadByClient = useMutation(api.clientChats.markAsReadByClient);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -49,16 +51,25 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
   // Mark messages as read when chat is opened
   useEffect(() => {
     if (!isDemo && isOpen && unreadCount > 0 && workspaceId && clientId) {
-      markAsReadByAdvisor({
-        workspaceId: workspaceId as any,
-        clientId: clientId as any,
-      });
+      if (isClientPortal) {
+        // Client portal: mark messages as read by client
+        markAsReadByClient({
+          workspaceId: workspaceId as any,
+          clientId: clientId as any,
+        });
+      } else {
+        // Advisor portal: mark messages as read by advisor
+        markAsReadByAdvisor({
+          workspaceId: workspaceId as any,
+          clientId: clientId as any,
+        });
+      }
     }
-  }, [isDemo, isOpen, unreadCount, workspaceId, clientId, markAsReadByAdvisor]);
+  }, [isDemo, isOpen, unreadCount, workspaceId, clientId, markAsReadByAdvisor, markAsReadByClient, isClientPortal]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !user?._id) return;
+    if (!message.trim()) return;
 
     if (isDemo) {
       // In demo mode, just simulate sending a message
@@ -69,12 +80,23 @@ const Chat: React.FC<ChatProps> = ({ workspaceId, clientId, clientName, isOpen, 
 
     setIsSending(true);
     try {
-      await sendAdvisorMessage({
-        workspaceId: workspaceId as any,
-        clientId: clientId as any,
-        advisorId: user._id as any,
-        content: message.trim(),
-      });
+      if (isClientPortal) {
+        // Client portal: send message as client
+        await sendClientMessage({
+          workspaceId: workspaceId as any,
+          clientId: clientId as any,
+          content: message.trim(),
+        });
+      } else {
+        // Advisor portal: send message as advisor
+        if (!user?._id) return;
+        await sendAdvisorMessage({
+          workspaceId: workspaceId as any,
+          clientId: clientId as any,
+          advisorId: user._id as any,
+          content: message.trim(),
+        });
+      }
       setMessage('');
     } catch (error) {
       console.error('Failed to send message:', error);
