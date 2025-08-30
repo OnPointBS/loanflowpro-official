@@ -26,6 +26,7 @@ const Chat: React.FC<ChatProps> = ({
   const { user } = useAuth();
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get real-time chat messages for this client
@@ -213,6 +214,29 @@ const Chat: React.FC<ChatProps> = ({
               );
             })
           )}
+          
+          {/* Typing Indicator */}
+          {isTyping && (
+            <div className="flex justify-start mb-4">
+              <div className="flex flex-col items-start max-w-xs lg:max-w-md">
+                <div className="flex items-center space-x-2 mb-2">
+                  <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"></div>
+                  <span className="text-xs font-medium text-gunmetal-light">
+                    {isClientPortal ? clientName : (user?.name || 'Advisor')} • {isClientPortal ? 'Client' : 'Advisor'}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 p-3 bg-gray-100 rounded-2xl rounded-bl-md max-w-[120px]">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-xs text-gray-500">typing...</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div ref={messagesEndRef} />
         </div>
 
@@ -223,7 +247,17 @@ const Chat: React.FC<ChatProps> = ({
               <input
                 type="text"
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => {
+                  setMessage(e.target.value);
+                  // Show typing indicator when user starts typing
+                  if (e.target.value.trim()) {
+                    setIsTyping(true);
+                    // Hide typing indicator after 2 seconds of no typing
+                    setTimeout(() => setIsTyping(false), 2000);
+                  } else {
+                    setIsTyping(false);
+                  }
+                }}
                 placeholder={`Type your message to ${clientName}...`}
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-orange focus:border-transparent bg-white shadow-sm"
                 disabled={isSending}
