@@ -25,6 +25,7 @@ const ClientPortal: React.FC = () => {
   const { currentWorkspace } = useWorkspace();
   const [searchParams] = useSearchParams();
   const [expandedLoanTypes, setExpandedLoanTypes] = useState<Set<string>>(new Set());
+  const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [uploadingFiles, setUploadingFiles] = useState<Record<string, boolean>>({});
   const [selectedFiles, setSelectedFiles] = useState<Record<string, File[]>>({});
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
@@ -169,6 +170,17 @@ const ClientPortal: React.FC = () => {
       newExpanded.add(loanTypeId);
     }
     setExpandedLoanTypes(newExpanded);
+  };
+
+  // Toggle task expansion
+  const toggleTask = (taskId: string) => {
+    const newExpanded = new Set(expandedTasks);
+    if (newExpanded.has(taskId)) {
+      newExpanded.delete(taskId);
+    } else {
+      newExpanded.add(taskId);
+    }
+    setExpandedTasks(newExpanded);
   };
 
   // Handle file selection
@@ -420,58 +432,93 @@ const ClientPortal: React.FC = () => {
                               {clientLoanType.tasks.map((task: any) => {
                                 // Get documents for this task
                                 const taskDocuments = getDocumentsForTask(task._id);
+                                const isTaskExpanded = expandedTasks.has(task._id);
                                 
                                 return (
-                                  <div key={task._id} className="bg-white rounded-md p-4 border border-gray-200">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center space-x-2 mb-2">
+                                  <div key={task._id} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                    {/* Compact Task Header - Always Visible */}
+                                    <div 
+                                      className="p-4 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100"
+                                      onClick={() => toggleTask(task._id)}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center space-x-3 flex-1 min-w-0">
                                           {/* Task Status Icon */}
                                           {task.status === 'completed' ? (
-                                            <CheckCircle className="h-5 w-5 text-green-500" />
+                                            <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
                                           ) : task.status === 'in_progress' ? (
-                                            <Clock className="h-5 w-5 text-blue-500" />
+                                            <Clock className="h-5 w-5 text-blue-500 flex-shrink-0" />
                                           ) : (
-                                            <AlertCircle className="h-5 w-5 text-yellow-500" />
+                                            <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
                                           )}
                                           
-                                          {/* Task Title */}
-                                          <h5 className="font-medium text-gunmetal">{task.title}</h5>
-                                          
-                                          {/* Document Upload Indicator - Use real attachmentsAllowed field */}
+                                          {/* Task Title and Basic Info */}
+                                          <div className="flex-1 min-w-0">
+                                            <h5 className="font-medium text-gunmetal truncate">{task.title}</h5>
+                                            {task.description && (
+                                              <p className="text-sm text-gunmetal-light truncate mt-1">
+                                                {task.description}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                        
+                                        <div className="flex items-center space-x-3 flex-shrink-0">
+                                          {/* Document Count Badge */}
                                           {task.attachmentsAllowed && (
                                             <div className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs">
                                               <Upload className="h-3 w-3" />
-                                              <span>Documents Required</span>
+                                              <span className="hidden sm:inline">Docs</span>
                                             </div>
                                           )}
+                                          
+                                          {/* Task Status Badge */}
+                                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                            task.status === 'completed' 
+                                              ? 'bg-green-100 text-green-800' 
+                                              : task.status === 'in_progress'
+                                              ? 'bg-blue-100 text-blue-800'
+                                              : task.status === 'ready_for_review'
+                                              ? 'bg-orange-100 text-orange-800'
+                                              : 'bg-yellow-100 text-yellow-800'
+                                          }`}>
+                                            {task.status === 'completed' ? '✓' : 
+                                             task.status === 'in_progress' ? '⏳' : 
+                                             task.status === 'ready_for_review' ? '👁' :
+                                             '⏸'}
+                                          </span>
+                                          
+                                          {/* Expand/Collapse Icon */}
+                                          <div className="flex-shrink-0">
+                                            {isTaskExpanded ? (
+                                              <ChevronDown className="h-4 w-4 text-gunmetal" />
+                                            ) : (
+                                              <ChevronRight className="h-4 w-4 text-gunmetal" />
+                                            )}
+                                          </div>
                                         </div>
-                                        
-                                        {/* Task Description */}
-                                        {task.description && (
-                                          <p className="text-sm text-gunmetal-light mb-2">{task.description}</p>
-                                          )}
-                                        
+                                      </div>
+                                    </div>
+
+                                    {/* Expandable Task Details */}
+                                    {isTaskExpanded && (
+                                      <div className="p-4 bg-gray-50 space-y-4">
                                         {/* Task Instructions */}
                                         {task.instructions && (
-                                          <p className="text-sm text-gunmetal-light mb-2">{task.instructions}</p>
-                                        )}
-                                        
-                                        {/* Client Note if available */}
-                                        {task.clientNote && (
-                                          <div className="bg-gray-50 p-2 rounded text-sm text-gunmetal-light">
-                                            <span className="font-medium">Note:</span> {task.clientNote}
+                                          <div className="bg-white p-3 rounded border border-gray-200">
+                                            <h6 className="text-sm font-medium text-gunmetal mb-2">Instructions</h6>
+                                            <p className="text-sm text-gunmetal-light">{task.instructions}</p>
                                           </div>
                                         )}
                                         
-                                        {/* Task Note Management */}
-                                        <div className="mt-3">
+                                        {/* Client Note Management */}
+                                        <div className="bg-white p-3 rounded border border-gray-200">
                                           <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-gunmetal">Your Notes</span>
+                                            <h6 className="text-sm font-medium text-gunmetal">Your Notes</h6>
                                             {editingTask !== task._id && (
                                               <button
                                                 onClick={() => startEditingNote(task._id, task.clientNote || '')}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 title={task.clientNote ? 'Edit Note' : 'Add Note'}
                                               >
                                                 <Edit3 className="h-4 w-4" />
@@ -486,25 +533,23 @@ const ClientPortal: React.FC = () => {
                                                 onChange={(e) => setTaskNotes(prev => ({ ...prev, [task._id]: e.target.value }))}
                                                 placeholder="Add your notes about this task..."
                                                 className="w-full p-2 border border-gray-300 rounded text-sm resize-none"
-                                                rows={3}
+                                                rows={2}
                                               />
                                               <div className="flex gap-2">
                                                 <button
                                                   onClick={() => handleTaskNoteUpdate(task._id)}
-                                                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-                                                  title="Save Note"
+                                                  className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
                                                 >
-                                                  <CheckCircle className="h-4 w-4" />
+                                                  Save
                                                 </button>
                                                 <button
                                                   onClick={() => {
                                                     setEditingTask(null);
                                                     setTaskNotes(prev => ({ ...prev, [task._id]: '' }));
                                                   }}
-                                                  className="p-2 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition-colors"
-                                                  title="Cancel"
+                                                  className="px-3 py-1.5 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors"
                                                 >
-                                                  <X className="h-4 w-4" />
+                                                  Cancel
                                                 </button>
                                               </div>
                                             </div>
@@ -518,91 +563,83 @@ const ClientPortal: React.FC = () => {
                                         </div>
                                         
                                         {/* Task Status Management */}
-                                        <div className="mt-3">
-                                          <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-gunmetal">Task Status</span>
-                                          </div>
-                                          
-                                          <div className="flex gap-2">
+                                        <div className="bg-white p-3 rounded border border-gray-200">
+                                          <h6 className="text-sm font-medium text-gunmetal mb-3">Update Status</h6>
+                                          <div className="flex flex-wrap gap-2">
                                             <button
                                               onClick={() => handleTaskStatusChange(task._id, 'in_progress')}
                                               disabled={task.status === 'in_progress'}
-                                              className={`p-2 rounded-full transition-colors ${
+                                              className={`px-3 py-1.5 rounded text-sm transition-colors ${
                                                 task.status === 'in_progress'
                                                   ? 'bg-blue-100 text-blue-800 cursor-not-allowed'
-                                                  : 'text-blue-600 hover:bg-blue-50'
+                                                  : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
                                               }`}
-                                              title="Mark as In Progress"
                                             >
-                                              <Clock className="h-4 w-4" />
+                                              <Clock className="h-4 w-4 inline mr-1" />
+                                              In Progress
                                             </button>
                                             
                                             <button
                                               onClick={() => handleTaskStatusChange(task._id, 'ready_for_review')}
                                               disabled={task.status === 'ready_for_review'}
-                                              className={`p-2 rounded-full transition-colors ${
+                                              className={`px-3 py-1.5 rounded text-sm transition-colors ${
                                                 task.status === 'ready_for_review'
                                                   ? 'bg-orange-100 text-orange-800 cursor-not-allowed'
-                                                  : 'text-orange-600 hover:bg-orange-50'
+                                                  : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
                                               }`}
-                                              title="Mark as Ready for Review"
                                             >
-                                              <AlertCircle className="h-4 w-4" />
+                                              <AlertCircle className="h-4 w-4 inline mr-1" />
+                                              Ready for Review
                                             </button>
                                             
                                             <button
                                               onClick={() => handleTaskStatusChange(task._id, 'completed')}
                                               disabled={task.status === 'completed'}
-                                              className={`p-2 rounded-full transition-colors ${
+                                              className={`px-3 py-1.5 rounded text-sm transition-colors ${
                                                 task.status === 'completed'
                                                   ? 'bg-green-100 text-green-800 cursor-not-allowed'
-                                                  : 'text-green-600 hover:bg-green-50'
+                                                  : 'bg-green-50 text-green-600 hover:bg-green-100'
                                               }`}
-                                              title="Mark as Complete"
                                             >
-                                              <CheckCircle className="h-4 w-4" />
+                                              <CheckCircle className="h-4 w-4 inline mr-1" />
+                                              Complete
                                             </button>
                                           </div>
                                         </div>
                                         
-                                        {/* Uploaded Documents Section */}
-                                        <div className="mt-3">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            <FileText className="h-4 w-4 text-gray-500" />
-                                            <span className="text-sm font-medium text-gunmetal">Documents</span>
-                                          </div>
+                                        {/* Documents Section */}
+                                        <div className="bg-white p-3 rounded border border-gray-200">
+                                          <h6 className="text-sm font-medium text-gunmetal mb-3">Documents</h6>
                                           
                                           {/* Show uploaded documents */}
                                           {taskDocuments && taskDocuments.length > 0 ? (
-                                            <div className="space-y-2">
+                                            <div className="space-y-2 mb-3">
                                               {taskDocuments.map((doc: any) => (
                                                 <div key={doc._id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                                  <div className="flex items-center gap-2">
-                                                    <FileText className="h-4 w-4 text-gray-500" />
-                                                    <span className="text-sm text-gunmetal">{doc.fileName}</span>
-                                                    <span className="text-xs text-gray-500">({doc.fileType})</span>
+                                                  <div className="flex items-center gap-2 min-w-0">
+                                                    <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                                    <span className="text-sm text-gunmetal truncate">{doc.fileName}</span>
+                                                    <span className="text-xs text-gray-500 flex-shrink-0">({doc.fileType})</span>
                                                   </div>
-                                                  <div className="flex items-center gap-2">
-                                                    <span className={`text-xs px-2 py-1 rounded ${
-                                                      doc.status === 'approved' ? 'bg-green-100 text-green-800' :
-                                                      doc.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                                      'bg-yellow-100 text-yellow-800'
-                                                    }`}>
-                                                      {doc.status}
-                                                    </span>
-                                                  </div>
+                                                  <span className={`text-xs px-2 py-1 rounded flex-shrink-0 ${
+                                                    doc.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                                    doc.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                                    'bg-yellow-100 text-yellow-800'
+                                                  }`}>
+                                                    {doc.status}
+                                                  </span>
                                                 </div>
                                               ))}
                                             </div>
                                           ) : (
-                                            <div className="bg-gray-50 p-2 rounded text-sm">
+                                            <div className="bg-gray-50 p-2 rounded text-sm mb-3">
                                               <p className="text-gunmetal-light">No documents uploaded yet</p>
                                             </div>
                                           )}
                                           
                                           {/* File Upload Section - Only show if attachments are allowed */}
                                           {task.attachmentsAllowed && (
-                                            <div className="mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                                            <div className="border-t border-gray-200 pt-3">
                                               <h6 className="text-sm font-medium text-blue-800 mb-2">Upload Documents</h6>
                                               
                                               {/* File Input */}
@@ -611,7 +648,7 @@ const ClientPortal: React.FC = () => {
                                                   type="file"
                                                   multiple
                                                   onChange={(e) => handleFileSelect(task._id, e.target.files)}
-                                                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-3 file:rounded file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                                                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
                                                 />
                                               </div>
@@ -623,10 +660,10 @@ const ClientPortal: React.FC = () => {
                                                   <div className="space-y-1">
                                                     {selectedFiles[task._id].map((file, index) => (
                                                       <div key={index} className="flex items-center justify-between bg-white p-2 rounded text-sm">
-                                                        <span className="text-gray-700">{file.name}</span>
+                                                        <span className="text-gray-700 truncate">{file.name}</span>
                                                         <button
                                                           onClick={() => handleFileRemove(task._id, index)}
-                                                          className="p-1 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                                          className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                                                           title="Remove file"
                                                         >
                                                           <X className="h-3 w-3" />
@@ -658,26 +695,8 @@ const ClientPortal: React.FC = () => {
                                             </div>
                                           )}
                                         </div>
-                                        
-                                        {/* Task Status Badge */}
-                                        <div className="mt-2">
-                                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                            task.status === 'completed' 
-                                              ? 'bg-green-100 text-green-800' 
-                                              : task.status === 'in_progress'
-                                              ? 'bg-blue-100 text-blue-800'
-                                              : task.status === 'ready_for_review'
-                                              ? 'bg-orange-100 text-orange-800'
-                                              : 'bg-yellow-100 text-yellow-800'
-                                          }`}>
-                                            {task.status === 'completed' ? 'Completed' : 
-                                             task.status === 'in_progress' ? 'In Progress' : 
-                                             task.status === 'ready_for_review' ? 'Ready for Review' :
-                                             'Pending'}
-                                          </span>
-                                        </div>
                                       </div>
-                                    </div>
+                                    )}
                                   </div>
                                 );
                               })}
