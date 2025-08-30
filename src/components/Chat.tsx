@@ -181,9 +181,9 @@ const Chat: React.FC<ChatProps> = ({
               return (
                 <div
                   key={msg._id}
-                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
+                  className={`flex ${isOwnMessage ? 'justify-start' : 'justify-start'} mb-4`}
                 >
-                  <div className={`flex flex-col ${isOwnMessage ? 'items-end' : 'items-start'} max-w-xs lg:max-w-md`}>
+                  <div className={`flex flex-col ${isOwnMessage ? 'items-start' : 'items-start'} max-w-xs lg:max-w-md`}>
                     {!isOwnMessage && (
                       <div className="flex items-center space-x-2 mb-2">
                         <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"></div>
@@ -196,14 +196,14 @@ const Chat: React.FC<ChatProps> = ({
                     <div
                       className={`px-4 py-3 rounded-2xl shadow-sm max-w-[280px] ${
                         isOwnMessage
-                          ? 'bg-gradient-to-r from-brand-orange to-orange-500 text-white rounded-br-md ml-auto shadow-lg'
+                          ? 'bg-gradient-to-r from-brand-orange to-orange-500 text-white rounded-bl-md mr-auto shadow-lg'
                           : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-bl-md mr-auto shadow-lg'
                       }`}
                     >
                       <p className="text-sm leading-relaxed break-words">{msg.content}</p>
                     </div>
                     
-                    <div className={`mt-2 px-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                    <div className={`mt-2 px-1 ${isOwnMessage ? 'text-left' : 'text-left'}`}>
                       <p className={`text-xs ${isOwnMessage ? 'text-orange-200' : 'text-blue-200'}`}>
                         {formatTime(msg.createdAt)}
                       </p>
