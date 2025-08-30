@@ -225,8 +225,8 @@ const Chat: React.FC<ChatProps> = ({
             <div className="flex justify-start mb-4">
               <div className="flex flex-col items-start max-w-xs lg:max-w-md">
                 <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"></div>
-                  <span className="text-xs font-medium text-gunmetal-light">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-xs font-medium text-gray-600">
                     {isClientPortal ? clientName : (user?.name || 'Advisor')} • {isClientPortal ? 'Client' : 'Advisor'}
                   </span>
                 </div>
