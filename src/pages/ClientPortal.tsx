@@ -369,7 +369,7 @@ const ClientPortal: React.FC = () => {
                             </div>
                             <div className="flex-1">
                               <h3 className="text-lg font-semibold text-gunmetal">
-                                {clientLoanType.loanType?.name || 'Loan Type'}
+                                {clientLoanType.customName || clientLoanType.loanType?.name || 'Loan Type'}
                               </h3>
                               <p className="text-sm text-gunmetal-light">
                                 {clientLoanType.loanType?.description || 'No description available'}
